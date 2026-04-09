@@ -97,7 +97,7 @@ Movement focus:
             role: "user",
             content: [
               {
-                type: "text",
+                type: "input_text",
                 text: `CLIENT CONTEXT:\n${loriContext}\n\nUSER MESSAGE:\n${message}`
               }
             ]
