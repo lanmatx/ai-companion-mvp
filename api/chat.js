@@ -90,7 +90,7 @@ Movement focus:
         "Authorization": `Bearer ${process.env.OPENAI_API_KEY}`
       },
       body: JSON.stringify({
-        model: "gpt-5.4-mini",
+        model: "gpt-5.4",
         instructions: systemPrompt,
         input: [
           {
