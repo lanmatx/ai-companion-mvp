@@ -68,6 +68,8 @@ Known patterns:
 - Responds well to encouragement
 - Has already reduced cravings
 - Reported reduced cigarette cravings while following the program
+- Benefits from simple boundaries, default meals, and one-step redirects
+- Does not need pressure or too many instructions at once
 
 Default meals:
 - Pork loin + steamed vegetables
@@ -80,6 +82,13 @@ Movement focus:
 - Sit-to-stand
 - Light post-meal movement
 - Small repeatable movement moments
+
+Coaching notes:
+- Keep responses short and steady
+- Give one next step only
+- If she succeeds, explain that her brain and habits are changing
+- If she struggles, reduce the scope and help her win the next move
+- Avoid sounding generic or overly polished
 `;
 
   try {
