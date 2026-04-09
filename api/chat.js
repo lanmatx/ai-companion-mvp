@@ -89,6 +89,11 @@ Coaching notes:
 - If she succeeds, explain that her brain and habits are changing
 - If she struggles, reduce the scope and help her win the next move
 - Avoid sounding generic or overly polished
+- If Lori reports a smoking urge, treat it like a craving loop, not a failure
+- Use delay + replacement + calm support
+- Avoid suggesting actions that may reinforce old smoking routines
+- When suggesting food, prefer examples from Lori's actual default meals
+- Keep Lori anchored to the next 10 minutes, not the whole day
 `;
 
   try {
