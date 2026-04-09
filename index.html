@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Adam — AI Health Companion</title>
+  <title>Neville — AI Health Companion</title>
   <style>
     body {
       margin: 0;
@@ -57,7 +57,7 @@
       white-space: pre-wrap;
     }
 
-    .adam {
+    .Neville {
       background: #fff4ec;
       border-left: 4px solid #ff5a00;
       padding: 10px 12px;
@@ -129,7 +129,7 @@
 <body>
   <div class="wrap">
     <div class="card">
-      <h1>Hi Lori, I’m Adam — your health companion</h1>
+      <h1>Hi Lori, I’m Neville — your health companion</h1>
       <div class="sub">
         I’m here to help you stay on track — especially when it gets hard.
       </div>
@@ -167,9 +167,9 @@
 
     function addLoading() {
       const div = document.createElement("div");
-      div.className = "msg adam loading";
+      div.className = "msg Neville loading";
       div.id = "loadingMsg";
-      div.innerHTML = `<strong>Adam:</strong><br>Thinking...`;
+      div.innerHTML = `<strong>Neville:</strong><br>Thinking...`;
       chatbox.appendChild(div);
       chatbox.scrollTop = chatbox.scrollHeight;
     }
@@ -179,7 +179,7 @@
       if (loading) loading.remove();
     }
 
-    async function sendToAdam(message) {
+    async function sendToNeville(message) {
       addMessage("You", message, "user");
       addLoading();
 
@@ -196,13 +196,13 @@
         removeLoading();
 
         if (data.reply) {
-          addMessage("Adam", data.reply, "adam");
+          addMessage("Neville", data.reply, "Neville");
         } else {
-          addMessage("Adam", "I’m here with you, but I hit a technical issue. Please try again.", "adam");
+          addMessage("Neville", "I’m here with you, but I hit a technical issue. Please try again.", "Neville");
         }
       } catch (error) {
         removeLoading();
-        addMessage("Adam", "I’m having trouble connecting right now. Please try again in a moment.", "adam");
+        addMessage("Neville", "I’m having trouble connecting right now. Please try again in a moment.", "Neville");
         console.error(error);
       }
     }
@@ -211,11 +211,11 @@
       const message = input.value.trim();
       if (!message) return;
       input.value = "";
-      sendToAdam(message);
+      sendToNeville(message);
     }
 
     function sendQuickReply(message) {
-      sendToAdam(message);
+      sendToNeville(message);
     }
 
     input.addEventListener("keydown", function(e) {
@@ -226,9 +226,9 @@
     });
 
     addMessage(
-      "Adam",
+      "Neville",
       "Hi Lori — I’m here with you.\n\nQuick check-in:\nAre you feeling okay, low-energy, or tempted right now?",
-      "adam"
+      "Neville"
     );
   </script>
 </body>
