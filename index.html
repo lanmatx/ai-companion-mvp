@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Adam — AI Health Companion</title>
+  <style>
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background: #f4f4f4;
+      color: #222;
+    }
+
+    .wrap {
+      max-width: 760px;
+      margin: 40px auto;
+      padding: 20px;
+    }
+
+    .card {
+      background: #ff5a00;
+      border-radius: 18px;
+      padding: 28px 24px;
+      color: white;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+    }
+
+    h1 {
+      margin: 0 0 12px;
+      font-size: 2rem;
+      line-height: 1.15;
+      text-align: center;
+    }
+
+    .sub {
+      text-align: center;
+      font-size: 1.15rem;
+      line-height: 1.5;
+      margin-bottom: 24px;
+    }
+
+    .chatbox {
+      background: white;
+      color: #222;
+      border-radius: 16px;
+      padding: 16px;
+      min-height: 320px;
+      max-height: 460px;
+      overflow-y: auto;
+      margin-bottom: 16px;
+    }
+
+    .msg {
+      margin-bottom: 14px;
+      line-height: 1.5;
+      white-space: pre-wrap;
+    }
+
+    .adam {
+      background: #fff4ec;
+      border-left: 4px solid #ff5a00;
+      padding: 10px 12px;
+      border-radius: 10px;
+    }
+
+    .user {
+      background: #f1f1f1;
+      border-left: 4px solid #999;
+      padding: 10px 12px;
+      border-radius: 10px;
+    }
+
+    .quick-replies {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-bottom: 14px;
+    }
+
+    .quick-replies button,
+    .send-btn {
+      background: white;
+      color: #ff5a00;
+      border: none;
+      border-radius: 10px;
+      padding: 12px 16px;
+      font-size: 1rem;
+      cursor: pointer;
+      font-weight: 600;
+    }
+
+    .quick-replies button:hover,
+    .send-btn:hover {
+      opacity: 0.92;
+    }
+
+    .input-row {
+      display: flex;
+      gap: 10px;
+      align-items: stretch;
+    }
+
+    textarea {
+      flex: 1;
+      border-radius: 12px;
+      border: none;
+      padding: 14px;
+      font-size: 1rem;
+      resize: vertical;
+      min-height: 70px;
+      max-height: 160px;
+      font-family: Arial, sans-serif;
+    }
+
+    .footer-note {
+      color: #fff3eb;
+      text-align: center;
+      margin-top: 14px;
+      font-size: 0.95rem;
+    }
+
+    .loading {
+      opacity: 0.75;
+      font-style: italic;
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="card">
+      <h1>Hi Lori, I’m Adam — your health companion</h1>
+      <div class="sub">
+        I’m here to help you stay on track — especially when it gets hard.
+      </div>
+
+      <div id="chatbox" class="chatbox"></div>
+
+      <div class="quick-replies">
+        <button onclick="sendQuickReply(`I’m okay`)">I’m okay</button>
+        <button onclick="sendQuickReply(`I’m low energy`)">I’m low energy</button>
+        <button onclick="sendQuickReply(`I’m tempted`)">I’m tempted</button>
+      </div>
+
+      <div class="input-row">
+        <textarea id="messageInput" placeholder="Type your message here..."></textarea>
+        <button class="send-btn" onclick="sendMessage()">Send</button>
+      </div>
+
+      <div class="footer-note">
+        Small step. Real support. One decision at a time.
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const chatbox = document.getElementById("chatbox");
+    const input = document.getElementById("messageInput");
+
+    function addMessage(sender, text, type) {
+      const div = document.createElement("div");
+      div.className = `msg ${type}`;
+      div.innerHTML = `<strong>${sender}:</strong><br>${text}`;
+      chatbox.appendChild(div);
+      chatbox.scrollTop = chatbox.scrollHeight;
+    }
+
+    function addLoading() {
+      const div = document.createElement("div");
+      div.className = "msg adam loading";
+      div.id = "loadingMsg";
+      div.innerHTML = `<strong>Adam:</strong><br>Thinking...`;
+      chatbox.appendChild(div);
+      chatbox.scrollTop = chatbox.scrollHeight;
+    }
+
+    function removeLoading() {
+      const loading = document.getElementById("loadingMsg");
+      if (loading) loading.remove();
+    }
+
+    async function sendToAdam(message) {
+      addMessage("You", message, "user");
+      addLoading();
+
+      try {
+        const response = await fetch("/api/chat", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({ message })
+        });
+
+        const data = await response.json();
+        removeLoading();
+
+        if (data.reply) {
+          addMessage("Adam", data.reply, "adam");
+        } else {
+          addMessage("Adam", "I’m here with you, but I hit a technical issue. Please try again.", "adam");
+        }
+      } catch (error) {
+        removeLoading();
+        addMessage("Adam", "I’m having trouble connecting right now. Please try again in a moment.", "adam");
+        console.error(error);
+      }
+    }
+
+    function sendMessage() {
+      const message = input.value.trim();
+      if (!message) return;
+      input.value = "";
+      sendToAdam(message);
+    }
+
+    function sendQuickReply(message) {
+      sendToAdam(message);
+    }
+
+    input.addEventListener("keydown", function(e) {
+      if (e.key === "Enter" && !e.shiftKey) {
+        e.preventDefault();
+        sendMessage();
+      }
+    });
+
+    addMessage(
+      "Adam",
+      "Hi Lori — I’m here with you.\n\nQuick check-in:\nAre you feeling okay, low-energy, or tempted right now?",
+      "adam"
+    );
+  </script>
+</body>
+</html>
