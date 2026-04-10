@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Neville — AI Health Companion</title>
+  <title>Neville — Health Companion</title>
   <style>
     body {
       margin: 0;
@@ -57,7 +57,7 @@
       white-space: pre-wrap;
     }
 
-    .Neville {
+    .neville {
       background: #fff4ec;
       border-left: 4px solid #ff5a00;
       padding: 10px 12px;
@@ -101,8 +101,15 @@
       align-items: stretch;
     }
 
-    textarea {
+    .input-wrap {
       flex: 1;
+      display: flex;
+      flex-direction: column;
+    }
+
+    textarea {
+      width: 100%;
+      box-sizing: border-box;
       border-radius: 12px;
       border: none;
       padding: 14px;
@@ -111,6 +118,29 @@
       min-height: 70px;
       max-height: 160px;
       font-family: Arial, sans-serif;
+    }
+
+    .meta-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-top: 8px;
+      font-size: 0.9rem;
+    }
+
+    .char-counter {
+      color: #fff3eb;
+    }
+
+    .char-counter.limit {
+      color: #ffe08a;
+      font-weight: 700;
+    }
+
+    .error-text {
+      color: #ffe08a;
+      font-size: 0.9rem;
+      display: none;
     }
 
     .footer-note {
@@ -123,6 +153,11 @@
     .loading {
       opacity: 0.75;
       font-style: italic;
+    }
+
+    .send-btn:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
     }
   </style>
 </head>
@@ -143,8 +178,20 @@
       </div>
 
       <div class="input-row">
-        <textarea id="messageInput" placeholder="Type your message here..."></textarea>
-        <button class="send-btn" onclick="sendMessage()">Send</button>
+        <div class="input-wrap">
+          <textarea
+            id="messageInput"
+            maxlength="400"
+            placeholder="Type your message here..."
+          ></textarea>
+
+          <div class="meta-row">
+            <div id="errorText" class="error-text">Please keep your message under 400 characters.</div>
+            <div id="charCounter" class="char-counter">0 / 400</div>
+          </div>
+        </div>
+
+        <button id="sendBtn" class="send-btn" onclick="sendMessage()">Send</button>
       </div>
 
       <div class="footer-note">
@@ -156,6 +203,10 @@
   <script>
     const chatbox = document.getElementById("chatbox");
     const input = document.getElementById("messageInput");
+    const sendBtn = document.getElementById("sendBtn");
+    const charCounter = document.getElementById("charCounter");
+    const errorText = document.getElementById("errorText");
+    const MAX_CHARS = 400;
 
     function addMessage(sender, text, type) {
       const div = document.createElement("div");
@@ -167,7 +218,7 @@
 
     function addLoading() {
       const div = document.createElement("div");
-      div.className = "msg Neville loading";
+      div.className = "msg neville loading";
       div.id = "loadingMsg";
       div.innerHTML = `<strong>Neville:</strong><br>Thinking...`;
       chatbox.appendChild(div);
@@ -179,9 +230,23 @@
       if (loading) loading.remove();
     }
 
+    function updateCounter() {
+      const length = input.value.length;
+      charCounter.textContent = `${length} / ${MAX_CHARS}`;
+
+      if (length >= MAX_CHARS) {
+        charCounter.classList.add("limit");
+        errorText.style.display = "block";
+      } else {
+        charCounter.classList.remove("limit");
+        errorText.style.display = "none";
+      }
+    }
+
     async function sendToNeville(message) {
       addMessage("You", message, "user");
       addLoading();
+      sendBtn.disabled = true;
 
       try {
         const response = await fetch("/api/chat", {
@@ -196,27 +261,39 @@
         removeLoading();
 
         if (data.reply) {
-          addMessage("Neville", data.reply, "Neville");
+          addMessage("Neville", data.reply, "neville");
         } else {
-          addMessage("Neville", "I’m here with you, but I hit a technical issue. Please try again.", "Neville");
+          addMessage("Neville", "I’m here with you, but I hit a technical issue. Please try again.", "neville");
         }
       } catch (error) {
         removeLoading();
-        addMessage("Neville", "I’m having trouble connecting right now. Please try again in a moment.", "Neville");
+        addMessage("Neville", "I’m having trouble connecting right now. Please try again in a moment.", "neville");
         console.error(error);
+      } finally {
+        sendBtn.disabled = false;
       }
     }
 
     function sendMessage() {
       const message = input.value.trim();
+
       if (!message) return;
+
+      if (message.length > MAX_CHARS) {
+        errorText.style.display = "block";
+        return;
+      }
+
       input.value = "";
+      updateCounter();
       sendToNeville(message);
     }
 
     function sendQuickReply(message) {
       sendToNeville(message);
     }
+
+    input.addEventListener("input", updateCounter);
 
     input.addEventListener("keydown", function(e) {
       if (e.key === "Enter" && !e.shiftKey) {
@@ -228,8 +305,10 @@
     addMessage(
       "Neville",
       "Hi Lori — I’m here with you.\n\nQuick check-in:\nAre you feeling okay, low-energy, or tempted right now?",
-      "Neville"
+      "neville"
     );
+
+    updateCounter();
   </script>
 </body>
 </html>
