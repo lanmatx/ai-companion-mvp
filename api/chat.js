@@ -3,14 +3,58 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: "Method not allowed" });
   }
 
-  const { message } = req.body || {};
+  try {
+    const body = req.body;
+    const message = body.message;
 
-  if (!message) {
-    return res.status(400).json({ error: "Message is required" });
+    // 👇 LOG USER INPUT
+    console.log({
+  user: message,
+  reply: reply,
+  time: new Date().toISOString(),
+});
+
+    // 👇 OpenAI call (your existing code)
+    const response = await fetch("https://api.openai.com/v1/responses", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
+      },
+      body: JSON.stringify({
+        model: "gpt-5.3",
+        input: [
+          {
+            role: "user",
+            content: [
+              {
+                type: "input_text",
+                text: message,
+              },
+            ],
+          },
+        ],
+      }),
+    });
+
+    const data = await response.json();
+
+    const reply =
+      data.output?.[0]?.content?.[0]?.text ||
+      "I'm here with you.";
+
+    // 👇 LOG AI RESPONSE
+    console.log("NEVILLE:", reply);
+
+    res.status(200).json({ reply });
+
+  } catch (error) {
+    console.error("ERROR:", error);
+    res.status(500).json({ error: "Something went wrong" });
   }
-
+}
   const systemPrompt = `
-You are Adam, a personalized AI Health Companion for Living Longevity.
+You are Neville, a personalized AI Health Companion for Living Longevity.
 
 You are warm, calm, supportive, practical, and encouraging.
 You are not clinical, not robotic, not judgmental, and never overwhelming.
@@ -44,7 +88,7 @@ Response rules:
 
   const loriContext = `
 Client name: Lori
-Companion name: Adam
+Companion name: Neville
 Tone style: warm, calm, supportive, practical
 Current phase: Week 2
 
