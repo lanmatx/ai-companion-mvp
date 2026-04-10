@@ -3,14 +3,16 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: "Method not allowed" });
   }
 
-  const { message } = req.body || {};
+  try {
+    const body = req.body || {};
+    const message = (body.message || "").trim();
 
-  if (!message) {
-    return res.status(400).json({ error: "Message is required" });
-  }
+    if (!message) {
+      return res.status(400).json({ error: "Message is required" });
+    }
 
-  const systemPrompt = `
-You are Adam, a personalized AI Health Companion for Living Longevity.
+    const systemPrompt = `
+You are Neville, a personalized AI Health Companion for Living Longevity.
 
 You are warm, calm, supportive, practical, and encouraging.
 You are not clinical, not robotic, not judgmental, and never overwhelming.
@@ -40,11 +42,12 @@ Response rules:
 - If the user succeeds, reinforce why it worked.
 - If the user is overwhelmed, shrink the plan.
 - If the user is in a craving moment, contain and redirect.
+- Do not diagnose, prescribe, or discuss medication changes.
 `;
 
-  const loriContext = `
+    const loriContext = `
 Client name: Lori
-Companion name: Adam
+Companion name: Neville
 Tone style: warm, calm, supportive, practical
 Current phase: Week 2
 
@@ -96,8 +99,9 @@ Coaching notes:
 - Keep Lori anchored to the next 10 minutes, not the whole day
 `;
 
-  try {
-    const openaiRes = await fetch("https://api.openai.com/v1/responses", {
+    console.log("USER:", message);
+
+    const openaiResponse = await fetch("https://api.openai.com/v1/responses", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -120,10 +124,11 @@ Coaching notes:
       })
     });
 
-    const data = await openaiRes.json();
+    const data = await openaiResponse.json();
 
-    if (!openaiRes.ok) {
-      return res.status(openaiRes.status).json({
+    if (!openaiResponse.ok) {
+      console.error("OPENAI ERROR:", JSON.stringify(data, null, 2));
+      return res.status(openaiResponse.status).json({
         error: "OpenAI request failed",
         details: data
       });
@@ -134,11 +139,14 @@ Coaching notes:
       data.output?.[0]?.content?.[0]?.text ||
       "I’m here with you. Tell me what’s going on right now.";
 
+    console.log("NEVILLE:", reply);
+
     return res.status(200).json({ reply });
-  } catch (err) {
+  } catch (error) {
+    console.error("SERVER ERROR:", error);
     return res.status(500).json({
       error: "Server error",
-      details: err.message
+      details: error.message || "Unknown error"
     });
   }
 }
