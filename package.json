@@ -1,7 +1,8 @@
 {
   "name": "ai-companion-mvp",
   "version": "1.0.0",
-"dependencies": {
+  "dependencies": {
     "@supabase/supabase-js": "^2.49.8"
+  },
   "private": true
 }
