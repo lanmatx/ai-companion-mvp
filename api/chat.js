@@ -1,11 +1,13 @@
 import { createClient } from '@supabase/supabase-js';
 
-const supabase = createClient(
-  process.env.SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_ROLE_KEY
-);
-
 export default async function handler(req, res) {
+  console.log("SUPABASE_URL exists:", !!process.env.SUPABASE_URL);
+  console.log("SUPABASE_KEY exists:", !!process.env.SUPABASE_SERVICE_ROLE_KEY);
+  const supabase = createClient(
+    process.env.SUPABASE_URL,
+    process.env.SUPABASE_SERVICE_ROLE_KEY
+  );
+
   if (req.method !== "POST") {
     return res.status(405).json({ error: "Method not allowed" });
   }
@@ -13,7 +15,8 @@ export default async function handler(req, res) {
   try {
     const body = req.body || {};
     const message = (body.message || "").trim();
-const USER_ID = 1; // Lori for now
+
+    const USER_ID = 1; // Lori for now
 
     if (!message) {
       return res.status(400).json({ error: "Message is required" });
