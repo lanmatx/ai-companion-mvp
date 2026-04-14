@@ -39,7 +39,9 @@ export default async function handler(req, res) {
     return res.status(200).json({ success: true });
 
   } catch (error) {
-    console.error('SERVER ERROR:', error);
-    return res.status(500).json({ error: 'Internal server error' });
-  }
+  console.error('SERVER ERROR:', error);
+  return res.status(500).json({
+    error: 'Internal server error',
+    details: error.message || 'Unknown error'
+  });
 }
