@@ -11,17 +11,12 @@ export default async function handler(req, res) {
       process.env.SUPABASE_SERVICE_ROLE_KEY
     );
 
-    const {
-      user_id,
-      entry_date,
-      entry_type,
-      entry_text
-    } = req.body || {};
+    const { entry_date, entry_type, entry_text } = req.body || {};
 
-    if (!user_id || !entry_type || !entry_text) {
-      return res.status(400).json({
-        error: 'Missing required fields'
-      });
+    const user_id = 1; // Lori for now
+
+    if (!entry_type || !entry_text) {
+      return res.status(400).json({ error: 'Missing required fields' });
     }
 
     const { error } = await supabase.from('progress_logs').insert([
@@ -39,6 +34,7 @@ export default async function handler(req, res) {
     }
 
     return res.status(200).json({ success: true });
+
   } catch (error) {
     console.error('SERVER ERROR:', error);
     return res.status(500).json({ error: 'Internal server error' });
