@@ -4,6 +4,17 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Neville — Health Companion</title>
+
+  <script>
+    if (!localStorage.getItem("user_id")) {
+      const id = crypto.randomUUID();
+      localStorage.setItem("user_id", id);
+      console.log("NEW USER ID CREATED:", id);
+    } else {
+      console.log("EXISTING USER ID:", localStorage.getItem("user_id"));
+    }
+  </script>
+
   <style>
     body {
       margin: 0;
@@ -208,6 +219,18 @@
     const errorText = document.getElementById("errorText");
     const MAX_CHARS = 400;
 
+    function getUserId() {
+      let userId = localStorage.getItem("user_id");
+
+      if (!userId) {
+        userId = crypto.randomUUID();
+        localStorage.setItem("user_id", userId);
+        console.log("RECOVERED MISSING USER ID:", userId);
+      }
+
+      return userId;
+    }
+
     function addMessage(sender, text, type) {
       const div = document.createElement("div");
       div.className = `msg ${type}`;
@@ -244,6 +267,8 @@
     }
 
     async function sendToNeville(message) {
+      const user_id = getUserId();
+
       addMessage("You", message, "user");
       addLoading();
       sendBtn.disabled = true;
@@ -254,11 +279,26 @@
           headers: {
             "Content-Type": "application/json"
           },
-          body: JSON.stringify({ message })
+          body: JSON.stringify({
+            message,
+            user_id
+          })
         });
 
         const data = await response.json();
         removeLoading();
+
+        if (!response.ok) {
+          console.error("CHAT API ERROR:", data);
+          addMessage(
+            "Neville",
+            data.error
+              ? `I hit a technical issue: ${data.error}`
+              : "I’m here with you, but I hit a technical issue. Please try again.",
+            "neville"
+          );
+          return;
+        }
 
         if (data.reply) {
           addMessage("Neville", data.reply, "neville");
@@ -309,6 +349,7 @@
     );
 
     updateCounter();
+    console.log("ACTIVE USER ID:", getUserId());
   </script>
 </body>
 </html>
