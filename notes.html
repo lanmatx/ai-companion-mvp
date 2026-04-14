@@ -121,7 +121,11 @@
         container.innerHTML = notes.map(note => `
           <div class="entry">
             <div class="meta">
-              <span>${formatDate(note.entry_date || note.created_at)}</span>
+              <span class="type ${note.entry_type}">${note.entry_type}</span>
+		.type.wins { color: #2e7d32; }
+		.type.milestones { color: #1565c0; }
+		.type.struggle { color: #c62828; }
+		.type.progress { color: #6a1b9a; }
               &nbsp;•&nbsp;
               <span class="type">${note.entry_type}</span>
             </div>
