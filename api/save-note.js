@@ -6,34 +6,44 @@ export default async function handler(req, res) {
   }
 
   try {
-    const supabase = createClient(
-      process.env.SUPABASE_URL,
-      process.env.SUPABASE_SERVICE_ROLE_KEY
-    );
+  console.log("SUPABASE_URL exists:", !!process.env.SUPABASE_URL);
+  console.log("SUPABASE_KEY exists:", !!process.env.SUPABASE_SERVICE_ROLE_KEY);
+  console.log("SUPABASE_URL value:", process.env.SUPABASE_URL);
 
-    const { entry_date, entry_type, entry_text } = req.body || {};
-    const user_id = 1; // Lori for now
+  const supabase = createClient(
+    process.env.SUPABASE_URL,
+    process.env.SUPABASE_SERVICE_ROLE_KEY
+  );
+
+  const { entry_date, entry_type, entry_text } = req.body || {};
+  const user_id = 1; // Lori for now
 
     if (!entry_type || !entry_text) {
       return res.status(400).json({ error: 'Missing required fields' });
     }
 
-    const { error } = await supabase.from('progress_logs').insert([
-      {
-        user_id,
-        entry_date: entry_date || null,
-        entry_type,
-        entry_text
-      }
-    ]);
+console.log("Attempting insert into progress_logs");
 
-    if (error) {
-      console.error('SUPABASE INSERT ERROR:', JSON.stringify(error, null, 2));
-      return res.status(500).json({
-        error: 'Supabase insert failed',
-        details: error.message
-      });
-    }
+    const result = await supabase.from('progress_logs').insert([
+  {
+    user_id,
+    entry_date: entry_date || null,
+    entry_type,
+    entry_text
+  }
+]);
+
+console.log("Insert result:", JSON.stringify(result, null, 2));
+
+const { error } = result;
+
+if (error) {
+  console.error('SUPABASE INSERT ERROR:', JSON.stringify(error, null, 2));
+  return res.status(500).json({
+    error: 'Supabase insert failed',
+    details: error.message
+  });
+}
 
     return res.status(200).json({ success: true });
   } catch (error) {
