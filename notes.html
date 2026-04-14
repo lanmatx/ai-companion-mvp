@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Your Recent Entries</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #f7f5f2;
+      color: #333;
+      margin: 0;
+      padding: 24px;
+    }
+
+    .container {
+      max-width: 800px;
+      margin: 0 auto;
+    }
+
+    h1 {
+      font-size: 2rem;
+      margin-bottom: 8px;
+      color: #333;
+    }
+
+    .subtext {
+      margin-bottom: 24px;
+      color: #666;
+    }
+
+    .entry {
+      background: #fff;
+      border-left: 5px solid #f05a00;
+      border-radius: 12px;
+      padding: 16px 18px;
+      margin-bottom: 16px;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+    }
+
+    .meta {
+      font-size: 0.95rem;
+      color: #666;
+      margin-bottom: 8px;
+    }
+
+    .type {
+      font-weight: bold;
+      color: #f05a00;
+      text-transform: capitalize;
+    }
+
+    .text {
+      font-size: 1.05rem;
+      line-height: 1.5;
+    }
+
+    .empty,
+    .error,
+    .loading {
+      background: #fff;
+      border-radius: 12px;
+      padding: 16px 18px;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+    }
+
+    .back-link {
+      display: inline-block;
+      margin-top: 20px;
+      color: #f05a00;
+      text-decoration: none;
+      font-weight: bold;
+    }
+
+    .back-link:hover {
+      text-decoration: underline;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Recent Entries</h1>
+    <div class="subtext">Your latest wins, struggles, milestones, and progress notes.</div>
+
+    <div id="notes-container" class="loading">Loading your notes...</div>
+
+    <a class="back-link" href="https://chat.embraceustudio.com/">← Back to Neville</a>
+  </div>
+
+  <script>
+    const container = document.getElementById("notes-container");
+
+    function formatDate(dateString) {
+      if (!dateString) return "No date";
+      const date = new Date(dateString);
+      return date.toLocaleDateString(undefined, {
+        year: "numeric",
+        month: "short",
+        day: "numeric"
+      });
+    }
+
+    fetch("/api/get-notes")
+      .then(async (response) => {
+        const data = await response.json();
+
+        if (!response.ok) {
+          throw new Error(data.error || "Failed to load notes");
+        }
+
+        const notes = data.notes || [];
+
+        if (notes.length === 0) {
+          container.className = "empty";
+          container.textContent = "No entries yet.";
+          return;
+        }
+
+        container.className = "";
+        container.innerHTML = notes.map(note => `
+          <div class="entry">
+            <div class="meta">
+              <span>${formatDate(note.entry_date || note.created_at)}</span>
+              &nbsp;•&nbsp;
+              <span class="type">${note.entry_type}</span>
+            </div>
+            <div class="text">${note.entry_text}</div>
+          </div>
+        `).join("");
+      })
+      .catch((error) => {
+        container.className = "error";
+        container.textContent = "Could not load notes right now.";
+        console.error(error);
+      });
+  </script>
+</body>
+</html>
