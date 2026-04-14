@@ -164,56 +164,56 @@ ${message}`
     }
 
     const reply =
-  data.output_text ||
-  data.output?.[0]?.content?.[0]?.text ||
-  "I’m here with you. Tell me what’s going on right now.";
+      data.output_text ||
+      data.output?.[0]?.content?.[0]?.text ||
+      "I’m here with you. Tell me what’s going on right now.";
 
-console.log("NEVILLE:", reply);
+    console.log("NEVILLE:", reply);
 
-return res.status(200).json({ reply });
+    // ===== AUTO LOG PROGRESS =====
+    try {
+      const lowerMsg = message.toLowerCase();
+      let entry_type = null;
 
-} catch (error) {
-  console.error("SERVER ERROR:", error);
-  return res.status(500).json({
-    error: "Internal server error",
-    details: error.message || "Unknown error"
-  });
-}
+      if (lowerMsg.includes("tempt") || lowerMsg.includes("craving")) {
+        entry_type = "struggle";
+      } else if (
+        lowerMsg.includes("did well") ||
+        lowerMsg.includes("resisted") ||
+        lowerMsg.includes("paused") ||
+        lowerMsg.includes("stayed consistent")
+      ) {
+        entry_type = "win";
+      }
 
-// ===== AUTO LOG PROGRESS (SAFE) =====
-try {
-  const lowerMsg = (message || "").toLowerCase();
+      if (entry_type) {
+        const { error: logError } = await supabase
+          .from("progress_logs")
+          .insert([
+            {
+              user_id: USER_ID,
+              entry_type,
+              entry_text: message,
+              entry_date: new Date().toISOString().split("T")[0]
+            }
+          ]);
 
-  let entry_type = null;
-
-  if (lowerMsg.includes("tempt") || lowerMsg.includes("craving")) {
-    entry_type = "struggle";
-  } else if (lowerMsg.includes("did well") || lowerMsg.includes("resisted")) {
-    entry_type = "win";
-  }
-
-  if (entry_type) {
-    await supabase
-      .from("progress_logs")
-      .insert([
-        {
-          user_id: USER_ID,
-          entry_type: entry_type,
-          entry_text: message,
-          entry_date: new Date().toISOString().split("T")[0]
-        }
-      ])
-      .then((res) => {
-        if (res.error) {
-          console.error("AUTO LOG INSERT ERROR:", res.error);
+        if (logError) {
+          console.error("AUTO LOG INSERT ERROR:", logError);
         } else {
           console.log("AUTO LOG SUCCESS");
         }
-      })
-      .catch((err) => {
-        console.error("AUTO LOG CATCH ERROR:", err);
-      });
+      }
+    } catch (autoLogError) {
+      console.error("AUTO LOG ERROR:", autoLogError);
+    }
+
+    return res.status(200).json({ reply });
+  } catch (error) {
+    console.error("SERVER ERROR:", error);
+    return res.status(500).json({
+      error: "Internal server error",
+      details: error.message || "Unknown error"
+    });
   }
-} catch (err) {
-  console.error("AUTO LOG OUTER ERROR:", err);
 }
