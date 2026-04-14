@@ -180,9 +180,9 @@ return res.status(200).json({ reply });
   });
 }
 
-// ===== AUTO LOG PROGRESS =====
+// ===== AUTO LOG PROGRESS (SAFE) =====
 try {
-  const lowerMsg = message.toLowerCase();
+  const lowerMsg = (message || "").toLowerCase();
 
   let entry_type = null;
 
@@ -193,15 +193,27 @@ try {
   }
 
   if (entry_type) {
-    await supabase.from("progress_logs").insert([
-      {
-        user_id: USER_ID,
-        entry_type,
-        entry_text: message,
-        entry_date: new Date().toISOString().split("T")[0]
-      }
-    ]);
+    await supabase
+      .from("progress_logs")
+      .insert([
+        {
+          user_id: USER_ID,
+          entry_type: entry_type,
+          entry_text: message,
+          entry_date: new Date().toISOString().split("T")[0]
+        }
+      ])
+      .then((res) => {
+        if (res.error) {
+          console.error("AUTO LOG INSERT ERROR:", res.error);
+        } else {
+          console.log("AUTO LOG SUCCESS");
+        }
+      })
+      .catch((err) => {
+        console.error("AUTO LOG CATCH ERROR:", err);
+      });
   }
 } catch (err) {
-  console.error("AUTO LOG ERROR:", err);
+  console.error("AUTO LOG OUTER ERROR:", err);
 }
