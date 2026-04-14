@@ -22,28 +22,6 @@ export default async function handler(req, res) {
     // ===== LOAD RECENT MEMORY =====
     let recentMemoryContext = "No recent notes.";
 
-    try {
-      const { data: notes, error: notesError } = await supabase
-        .from('progress_logs')
-        .select('entry_date, entry_type, entry_text')
-        .eq('user_id', USER_ID)
-        .order('created_at', { ascending: false })
-        .limit(5);
-
-      if (notesError) {
-        console.error("MEMORY READ ERROR:", JSON.stringify(notesError, null, 2));
-      } else if (notes && notes.length > 0) {
-        recentMemoryContext = notes
-          .map((n, i) => {
-            const date = n.entry_date || "No date";
-            return `${i + 1}. [${date}] ${n.entry_type}: ${n.entry_text}`;
-          })
-          .join('\n');
-      }
-    } catch (err) {
-      console.error("MEMORY ERROR:", err);
-    }
-
     const systemPrompt = `
 You are a personalized AI Health Companion for Living Longevity.
 
@@ -186,40 +164,44 @@ ${message}`
     }
 
     const reply =
-      data.output_text ||
-      data.output?.[0]?.content?.[0]?.text ||
-      "I’m here with you. Tell me what’s going on right now.";
+  data.output_text ||
+  data.output?.[0]?.content?.[0]?.text ||
+  "I’m here with you. Tell me what’s going on right now.";
 
-    console.log("NEVILLE:", reply);
+console.log("NEVILLE:", reply);
 
-    // ===== SAVE CHAT =====
-    try {
-      const { error: logError } = await supabase.from('progress_logs').insert([
-        {
-          user_id: USER_ID,
-          entry_type: 'user',
-          entry_text: message
-        },
-        {
-          user_id: USER_ID,
-          entry_type: 'neville',
-          entry_text: reply
-        }
-      ]);
+return res.status(200).json({ reply });
 
-      if (logError) {
-        console.error("LOGGING ERROR:", JSON.stringify(logError, null, 2));
-      }
-    } catch (logError) {
-      console.error("LOGGING ERROR:", logError);
-    }
+} catch (error) {
+  console.error("SERVER ERROR:", error);
+  return res.status(500).json({
+    error: "Internal server error",
+    details: error.message || "Unknown error"
+  });
+}
 
-    return res.status(200).json({ reply });
-  } catch (error) {
-    console.error("SERVER ERROR:", error);
-    return res.status(500).json({
-      error: "Server error",
-      details: error.message || "Unknown error"
-    });
+// ===== AUTO LOG PROGRESS =====
+try {
+  const lowerMsg = message.toLowerCase();
+
+  let entry_type = null;
+
+  if (lowerMsg.includes("tempt") || lowerMsg.includes("craving")) {
+    entry_type = "struggle";
+  } else if (lowerMsg.includes("did well") || lowerMsg.includes("resisted")) {
+    entry_type = "win";
   }
+
+  if (entry_type) {
+    await supabase.from("progress_logs").insert([
+      {
+        user_id: USER_ID,
+        entry_type,
+        entry_text: message,
+        entry_date: new Date().toISOString().split("T")[0]
+      }
+    ]);
+  }
+} catch (err) {
+  console.error("AUTO LOG ERROR:", err);
 }
