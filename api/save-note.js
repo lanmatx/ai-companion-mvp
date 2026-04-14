@@ -12,7 +12,6 @@ export default async function handler(req, res) {
     );
 
     const { entry_date, entry_type, entry_text } = req.body || {};
-
     const user_id = 1; // Lori for now
 
     if (!entry_type || !entry_text) {
@@ -29,19 +28,19 @@ export default async function handler(req, res) {
     ]);
 
     if (error) {
-  console.error('SUPABASE INSERT ERROR:', JSON.stringify(error, null, 2));
-  return res.status(500).json({
-    error: 'Supabase insert failed',
-    details: error.message
-  });
-}
+      console.error('SUPABASE INSERT ERROR:', JSON.stringify(error, null, 2));
+      return res.status(500).json({
+        error: 'Supabase insert failed',
+        details: error.message
+      });
+    }
 
     return res.status(200).json({ success: true });
-
   } catch (error) {
-  console.error('SERVER ERROR:', error);
-  return res.status(500).json({
-    error: 'Internal server error',
-    details: error.message || 'Unknown error'
-  });
+    console.error('SERVER ERROR:', error);
+    return res.status(500).json({
+      error: 'Internal server error',
+      details: error.message || 'Unknown error'
+    });
+  }
 }
