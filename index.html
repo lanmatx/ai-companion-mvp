@@ -6,13 +6,32 @@
   <title>Neville — Health Companion</title>
 
   <script>
-    if (!localStorage.getItem("user_id")) {
-      const id = crypto.randomUUID();
-      localStorage.setItem("user_id", id);
-      console.log("NEW USER ID CREATED:", id);
-    } else {
-      console.log("EXISTING USER ID:", localStorage.getItem("user_id"));
-    }
+    (function () {
+      const params = new URLSearchParams(window.location.search);
+
+      const urlUserId = (params.get("user_id") || "").trim();
+      const urlFirstName = (params.get("first_name") || "").trim();
+      const urlCompanionName = (params.get("companion_name") || "").trim();
+
+      if (urlUserId) {
+        localStorage.setItem("user_id", urlUserId);
+        console.log("USER ID FROM URL:", urlUserId);
+      } else if (!localStorage.getItem("user_id")) {
+        const fallbackId = crypto.randomUUID();
+        localStorage.setItem("user_id", fallbackId);
+        console.log("NEW FALLBACK USER ID CREATED:", fallbackId);
+      }
+
+      if (urlFirstName) {
+        localStorage.setItem("first_name", urlFirstName);
+        console.log("FIRST NAME FROM URL:", urlFirstName);
+      }
+
+      if (urlCompanionName) {
+        localStorage.setItem("companion_name", urlCompanionName);
+        console.log("COMPANION NAME FROM URL:", urlCompanionName);
+      }
+    })();
   </script>
 
   <style>
@@ -30,7 +49,7 @@
     }
 
     .card {
-      background: #ff5a00;
+      background: #ff4a00;
       border-radius: 18px;
       padding: 28px 24px;
       color: white;
@@ -70,7 +89,7 @@
 
     .neville {
       background: #fff4ec;
-      border-left: 4px solid #ff5a00;
+      border-left: 4px solid #ff4a00;
       padding: 10px 12px;
       border-radius: 10px;
     }
@@ -92,7 +111,7 @@
     .quick-replies button,
     .send-btn {
       background: white;
-      color: #ff5a00;
+      color: #ff4a00;
       border: none;
       border-radius: 10px;
       padding: 12px 16px;
@@ -175,8 +194,8 @@
 <body>
   <div class="wrap">
     <div class="card">
-      <h1>Hi Lori, I’m Neville — your health companion</h1>
-      <div class="sub">
+      <h1 id="heroTitle">Hi, I’m your health companion</h1>
+      <div class="sub" id="heroSub">
         I’m here to help you stay on track — especially when it gets hard.
       </div>
 
@@ -217,24 +236,50 @@
     const sendBtn = document.getElementById("sendBtn");
     const charCounter = document.getElementById("charCounter");
     const errorText = document.getElementById("errorText");
+    const heroTitle = document.getElementById("heroTitle");
     const MAX_CHARS = 400;
+
+    function escapeHtml(text) {
+      return String(text)
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#39;");
+    }
 
     function getUserId() {
       let userId = localStorage.getItem("user_id");
-
       if (!userId) {
         userId = crypto.randomUUID();
         localStorage.setItem("user_id", userId);
-        console.log("RECOVERED MISSING USER ID:", userId);
       }
-
       return userId;
+    }
+
+    function getFirstName() {
+      return (localStorage.getItem("first_name") || "").trim();
+    }
+
+    function getCompanionName() {
+      return (localStorage.getItem("companion_name") || "Neville").trim();
+    }
+
+    function updateHeader() {
+      const firstName = getFirstName();
+      const companionName = getCompanionName();
+
+      if (firstName) {
+        heroTitle.textContent = `Hi ${firstName}, I’m ${companionName} — your health companion`;
+      } else {
+        heroTitle.textContent = `Hi, I’m ${companionName} — your health companion`;
+      }
     }
 
     function addMessage(sender, text, type) {
       const div = document.createElement("div");
       div.className = `msg ${type}`;
-      div.innerHTML = `<strong>${sender}:</strong><br>${text}`;
+      div.innerHTML = `<strong>${escapeHtml(sender)}:</strong><br>${escapeHtml(text)}`;
       chatbox.appendChild(div);
       chatbox.scrollTop = chatbox.scrollHeight;
     }
@@ -243,7 +288,7 @@
       const div = document.createElement("div");
       div.className = "msg neville loading";
       div.id = "loadingMsg";
-      div.innerHTML = `<strong>Neville:</strong><br>Thinking...`;
+      div.innerHTML = `<strong>${escapeHtml(getCompanionName())}:</strong><br>Thinking...`;
       chatbox.appendChild(div);
       chatbox.scrollTop = chatbox.scrollHeight;
     }
@@ -266,8 +311,10 @@
       }
     }
 
-    async function sendToNeville(message) {
+    async function sendToCompanion(message) {
       const user_id = getUserId();
+      const first_name = getFirstName();
+      const companion_name = getCompanionName();
 
       addMessage("You", message, "user");
       addLoading();
@@ -281,7 +328,9 @@
           },
           body: JSON.stringify({
             message,
-            user_id
+            user_id,
+            first_name,
+            companion_name
           })
         });
 
@@ -291,7 +340,7 @@
         if (!response.ok) {
           console.error("CHAT API ERROR:", data);
           addMessage(
-            "Neville",
+            companion_name,
             data.error
               ? `I hit a technical issue: ${data.error}`
               : "I’m here with you, but I hit a technical issue. Please try again.",
@@ -301,13 +350,13 @@
         }
 
         if (data.reply) {
-          addMessage("Neville", data.reply, "neville");
+          addMessage(data.companion_name || companion_name, data.reply, "neville");
         } else {
-          addMessage("Neville", "I’m here with you, but I hit a technical issue. Please try again.", "neville");
+          addMessage(companion_name, "I’m here with you, but I hit a technical issue. Please try again.", "neville");
         }
       } catch (error) {
         removeLoading();
-        addMessage("Neville", "I’m having trouble connecting right now. Please try again in a moment.", "neville");
+        addMessage(getCompanionName(), "I’m having trouble connecting right now. Please try again in a moment.", "neville");
         console.error(error);
       } finally {
         sendBtn.disabled = false;
@@ -326,11 +375,11 @@
 
       input.value = "";
       updateCounter();
-      sendToNeville(message);
+      sendToCompanion(message);
     }
 
     function sendQuickReply(message) {
-      sendToNeville(message);
+      sendToCompanion(message);
     }
 
     input.addEventListener("input", updateCounter);
@@ -342,14 +391,24 @@
       }
     });
 
+    updateHeader();
+
+    const firstName = getFirstName();
+    const companionName = getCompanionName();
+
     addMessage(
-      "Neville",
-      "Hi Lori — I’m here with you.\n\nQuick check-in:\nAre you feeling okay, low-energy, or tempted right now?",
+      companionName,
+      firstName
+        ? `Hi ${firstName} — I’m here with you.\n\nQuick check-in:\nAre you feeling okay, low-energy, or tempted right now?`
+        : `Hi — I’m here with you.\n\nQuick check-in:\nAre you feeling okay, low-energy, or tempted right now?`,
       "neville"
     );
 
     updateCounter();
+
     console.log("ACTIVE USER ID:", getUserId());
+    console.log("ACTIVE FIRST NAME:", getFirstName());
+    console.log("ACTIVE COMPANION NAME:", getCompanionName());
   </script>
 </body>
 </html>
