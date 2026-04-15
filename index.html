@@ -267,19 +267,27 @@
     }
 
     function getCompanionName() {
-      return (localStorage.getItem("companion_name") || "Neville").trim();
-    }
+  const companionName = (localStorage.getItem("companion_name") || "").trim();
+
+  if (!companionName || companionName.includes("{{")) {
+    return "";
+  }
+
+  return companionName;
+}
 
     function updateHeader() {
-      const firstName = getFirstName();
-      const companionName = getCompanionName();
+  const firstName = getFirstName();
+  const companionName = getCompanionName();
 
-      if (firstName) {
-        heroTitle.textContent = `Hi ${firstName}, I’m ${companionName} — your health companion`;
-      } else {
-        heroTitle.textContent = `Hi, I’m ${companionName} — your health companion`;
-      }
-    }
+  if (firstName && companionName) {
+    heroTitle.textContent = `Hi ${firstName}, I’m ${companionName} — your health companion`;
+  } else if (companionName) {
+    heroTitle.textContent = `Hi, I’m ${companionName} — your health companion`;
+  } else {
+    heroTitle.textContent = `Hi, I’m your health companion`;
+  }
+}
 
     function addMessage(sender, text, type) {
       const div = document.createElement("div");
@@ -405,15 +413,16 @@
     updateHeader();
 
     const firstName = getFirstName();
-    const companionName = getCompanionName();
+const companionName = getCompanionName();
+const senderName = companionName || "Your companion";
 
-    addMessage(
-      companionName,
-      firstName
-        ? `Hi ${firstName} — I’m here with you.\n\nQuick check-in:\nAre you feeling okay, low-energy, or tempted right now?`
-        : `Hi — I’m here with you.\n\nQuick check-in:\nAre you feeling okay, low-energy, or tempted right now?`,
-      "neville"
-    );
+addMessage(
+  senderName,
+  firstName
+    ? `Hi ${firstName} — I’m here with you.\n\nQuick check-in:\nAre you feeling okay, low-energy, or tempted right now?`
+    : `Hi — I’m here with you.\n\nQuick check-in:\nAre you feeling okay, low-energy, or tempted right now?`,
+  "neville"
+);
 
     updateCounter();
 
