@@ -13,7 +13,12 @@ export default async function handler(req, res) {
 
     const body = req.body || {};
     const message = (body.message || "").trim();
-    const USER_ID = (body.user_id || "").trim();
+
+    let USER_ID = (body.user_id || "").trim();
+
+    if (!USER_ID && body.email) {
+      USER_ID = String(body.email).trim();
+    }
 
     if (!USER_ID) {
       return res.status(400).json({ error: "Missing user_id" });
@@ -23,7 +28,41 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: "Message is required" });
     }
 
+    let firstName = (body.first_name || "").trim() || "there";
+    let companionName = (body.companion_name || "").trim() || "Neville";
     let recentMemoryContext = "No recent notes.";
+
+    if (USER_ID.includes("@")) {
+      const { data: userRow, error: userError } = await supabase
+        .from("users")
+        .select("id, first_name, email, companion_name")
+        .ilike("email", USER_ID)
+        .single();
+
+      if (userError) {
+        console.error("USER LOOKUP BY EMAIL ERROR:", userError);
+      } else if (userRow) {
+        firstName = userRow.first_name || firstName;
+        companionName = userRow.companion_name || companionName;
+      }
+    } else {
+      const numericUserId = Number(USER_ID);
+
+      if (!Number.isNaN(numericUserId)) {
+        const { data: userRow, error: userError } = await supabase
+          .from("users")
+          .select("id, first_name, email, companion_name")
+          .eq("id", numericUserId)
+          .single();
+
+        if (userError) {
+          console.error("USER LOOKUP BY ID ERROR:", userError);
+        } else if (userRow) {
+          firstName = userRow.first_name || firstName;
+          companionName = userRow.companion_name || companionName;
+        }
+      }
+    }
 
     const { data: recentNotes, error: notesError } = await supabase
       .from("progress_logs")
@@ -33,7 +72,9 @@ export default async function handler(req, res) {
       .order("created_at", { ascending: false })
       .limit(5);
 
-    if (!notesError && recentNotes && recentNotes.length > 0) {
+    if (notesError) {
+      console.error("MEMORY LOOKUP ERROR:", notesError);
+    } else if (recentNotes && recentNotes.length > 0) {
       recentMemoryContext = recentNotes
         .map((note) => {
           const date = note.entry_date || "";
@@ -43,7 +84,7 @@ export default async function handler(req, res) {
     }
 
     const systemPrompt = `
-You are Neville, a personalized AI Health Companion for Living Longevity.
+You are ${companionName}, a personalized AI Health Companion for Living Longevity.
 
 Your role is to support the user in real-life moments by helping them make better decisions without pressure, shame, or overwhelm.
 
@@ -176,20 +217,27 @@ Help the user:
 - make decisions that fit their life
 
 -----------------------------------
-SUBTLE EDUCATION
+SUBTLE EDUCATION (IMPORTANT)
 -----------------------------------
 
 When appropriate, gently introduce simple health principles tied to the user’s current situation.
 
 Do this:
-- briefly
-- naturally
+- briefly (1–2 sentences)
+- naturally within the response
 - as an observation, not a rule
 
 Use soft language such as:
-- may
-- can
-- your body may be signaling
+- “may”
+- “can”
+- “your body may be signaling”
+
+Examples of principles you may introduce:
+- respecting natural hunger signals
+- allowing the digestive system to fully process and rest
+- avoiding constant grazing or over-fueling
+- leaving space between meals
+- giving the body time before eating again
 
 Do NOT:
 - lecture
@@ -198,26 +246,59 @@ Do NOT:
 - sound dogmatic
 
 -----------------------------------
-PRIORITIES
+MEAL TIMING LOGIC
+-----------------------------------
+
+- Do NOT force fixed meal schedules
+- Do NOT require breakfast or specific timing
+- Do NOT prescribe fasting protocols
+
+Instead:
+- respect hunger signals
+- support eating when the body is ready
+- gently discourage constant snacking
+- reinforce giving the body time to process between meals
+
+Example tone:
+“If you’re not hungry yet, that’s something you can respect. Your body may still be processing, so giving it a little more time can actually help.”
+
+-----------------------------------
+PRIORITIES (ORDER MATTERS)
 -----------------------------------
 
 1. Reduce pressure and shame
 2. Interrupt all-or-nothing thinking
 3. Offer one useful next step
-4. Lightly educate if appropriate
+4. Lightly educate (if appropriate)
 5. Reinforce agency and continuity
+
+-----------------------------------
+CORE IDENTITY
+-----------------------------------
+
+You are not trying to control the user.
+
+You are helping them:
+- stay in control of the next decision
+- feel supported
+- build confidence over time
+
+You are a steady presence for the hardest moments of the day.
 `;
 
-    const genericContext = `
-Companion name: Neville
+    const clientContext = `
+Client first name: ${firstName}
+Companion name: ${companionName}
 Tone style: warm, calm, supportive, practical
 
-Goals:
-- Reduce cravings
-- Improve energy
-- Build consistency
-- Reinforce new default habits
+RECENT MEMORY:
+${recentMemoryContext}
 `;
+
+    console.log("USER:", message);
+    console.log("USER_ID:", USER_ID);
+    console.log("FIRST_NAME:", firstName);
+    console.log("COMPANION_NAME:", companionName);
 
     const openaiResponse = await fetch("https://api.openai.com/v1/responses", {
       method: "POST",
@@ -235,10 +316,7 @@ Goals:
               {
                 type: "input_text",
                 text: `CLIENT CONTEXT:
-${genericContext}
-
-RECENT MEMORY:
-${recentMemoryContext}
+${clientContext}
 
 USER MESSAGE:
 ${message}`
@@ -262,19 +340,28 @@ ${message}`
     const reply =
       data.output_text ||
       data.output?.[0]?.content?.[0]?.text ||
-      "I’m here with you. Tell me what’s going on right now.";
+      `I’m here with you, ${firstName}. Tell me what’s going on right now.`;
 
     try {
       const lowerMsg = message.toLowerCase();
       let entry_type = null;
 
-      if (lowerMsg.includes("tempt") || lowerMsg.includes("craving")) {
+      if (
+        lowerMsg.includes("tempt") ||
+        lowerMsg.includes("craving") ||
+        lowerMsg.includes("urge") ||
+        lowerMsg.includes("want sweet") ||
+        lowerMsg.includes("want sugar")
+      ) {
         entry_type = "struggle";
       } else if (
         lowerMsg.includes("did well") ||
         lowerMsg.includes("resisted") ||
         lowerMsg.includes("paused") ||
-        lowerMsg.includes("stayed consistent")
+        lowerMsg.includes("stayed consistent") ||
+        lowerMsg.includes("walked") ||
+        lowerMsg.includes("said no") ||
+        lowerMsg.includes("chose better")
       ) {
         entry_type = "win";
       }
@@ -293,13 +380,19 @@ ${message}`
 
         if (logError) {
           console.error("AUTO LOG INSERT ERROR:", logError);
+        } else {
+          console.log("AUTO LOG SUCCESS");
         }
       }
     } catch (autoLogError) {
       console.error("AUTO LOG ERROR:", autoLogError);
     }
 
-    return res.status(200).json({ reply });
+    return res.status(200).json({
+      reply,
+      first_name: firstName,
+      companion_name: companionName
+    });
   } catch (error) {
     console.error("SERVER ERROR:", error);
     return res.status(500).json({
