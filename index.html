@@ -6,6 +6,21 @@
   <title>Neville — Health Companion</title>
 
   <script>
+    function getOrAskEmail() {
+      let email = localStorage.getItem("user_id");
+
+      if (!email || email.includes("{{")) {
+        email = prompt("Enter your email to continue:") || "";
+        email = email.trim();
+
+        if (email) {
+          localStorage.setItem("user_id", email);
+        }
+      }
+
+      return email;
+    }
+
     (function () {
       const params = new URLSearchParams(window.location.search);
 
@@ -13,24 +28,19 @@
       const urlFirstName = (params.get("first_name") || "").trim();
       const urlCompanionName = (params.get("companion_name") || "").trim();
 
-      if (urlUserId) {
+      if (urlUserId && !urlUserId.includes("{{")) {
         localStorage.setItem("user_id", urlUserId);
-        console.log("USER ID FROM URL:", urlUserId);
-      } else if (!localStorage.getItem("user_id")) {
-        const fallbackId = crypto.randomUUID();
-        localStorage.setItem("user_id", fallbackId);
-        console.log("NEW FALLBACK USER ID CREATED:", fallbackId);
       }
 
-      if (urlFirstName) {
+      if (urlFirstName && !urlFirstName.includes("{{")) {
         localStorage.setItem("first_name", urlFirstName);
-        console.log("FIRST NAME FROM URL:", urlFirstName);
       }
 
-      if (urlCompanionName) {
+      if (urlCompanionName && !urlCompanionName.includes("{{")) {
         localStorage.setItem("companion_name", urlCompanionName);
-        console.log("COMPANION NAME FROM URL:", urlCompanionName);
       }
+
+      getOrAskEmail();
     })();
   </script>
 
@@ -195,7 +205,7 @@
   <div class="wrap">
     <div class="card">
       <h1 id="heroTitle">Hi, I’m your health companion</h1>
-      <div class="sub" id="heroSub">
+      <div class="sub">
         I’m here to help you stay on track — especially when it gets hard.
       </div>
 
@@ -249,12 +259,7 @@
     }
 
     function getUserId() {
-      let userId = localStorage.getItem("user_id");
-      if (!userId) {
-        userId = crypto.randomUUID();
-        localStorage.setItem("user_id", userId);
-      }
-      return userId;
+      return getOrAskEmail();
     }
 
     function getFirstName() {
@@ -316,6 +321,11 @@
       const first_name = getFirstName();
       const companion_name = getCompanionName();
 
+      if (!user_id) {
+        addMessage(companion_name, "I need your email to continue.", "neville");
+        return;
+      }
+
       addMessage("You", message, "user");
       addLoading();
       sendBtn.disabled = true;
@@ -329,6 +339,7 @@
           body: JSON.stringify({
             message,
             user_id,
+            email: user_id,
             first_name,
             companion_name
           })
