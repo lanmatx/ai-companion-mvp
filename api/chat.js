@@ -28,40 +28,94 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: "Message is required" });
     }
 
-    let firstName = (body.first_name || "").trim() || "there";
-    let companionName = (body.companion_name || "").trim() || "Neville";
+    let firstName = (body.first_name || "").trim() || "";
+    let companionName = (body.companion_name || "").trim() || "";
     let recentMemoryContext = "No recent notes.";
+    let intakeProfileContext = "No intake profile available yet.";
 
-    if (USER_ID.includes("@")) {
-      const { data: userRow, error: userError } = await supabase
-        .from("users")
-        .select("id, first_name, email, companion_name")
-        .ilike("email", USER_ID)
-        .single();
+    // Load intake profile first
+    const { data: intakeRow, error: intakeError } = await supabase
+      .from("intake_profiles")
+      .select(`
+        user_id,
+        email,
+        first_name,
+        companion_name,
+        timezone,
+        primary_goal,
+        biggest_challenge,
+        preferred_coaching_tone,
+        movement_preference,
+        food_preference,
+        main_craving_pattern,
+        intake_summary
+      `)
+      .eq("user_id", USER_ID)
+      .maybeSingle();
 
-      if (userError) {
-        console.error("USER LOOKUP BY EMAIL ERROR:", userError);
-      } else if (userRow) {
-        firstName = userRow.first_name || firstName;
-        companionName = userRow.companion_name || companionName;
+    if (intakeError) {
+      console.error("INTAKE LOOKUP ERROR:", intakeError);
+    } else if (intakeRow) {
+      firstName = intakeRow.first_name || firstName;
+      companionName = intakeRow.companion_name || companionName;
+
+      const intakeBits = [
+        intakeRow.primary_goal ? `Primary goal: ${intakeRow.primary_goal}` : "",
+        intakeRow.biggest_challenge ? `Biggest challenge: ${intakeRow.biggest_challenge}` : "",
+        intakeRow.preferred_coaching_tone ? `Preferred coaching tone: ${intakeRow.preferred_coaching_tone}` : "",
+        intakeRow.movement_preference ? `Movement preference: ${intakeRow.movement_preference}` : "",
+        intakeRow.food_preference ? `Food preference: ${intakeRow.food_preference}` : "",
+        intakeRow.main_craving_pattern ? `Main craving pattern: ${intakeRow.main_craving_pattern}` : "",
+        intakeRow.timezone ? `Timezone: ${intakeRow.timezone}` : "",
+        intakeRow.intake_summary ? `Intake summary: ${intakeRow.intake_summary}` : ""
+      ].filter(Boolean);
+
+      if (intakeBits.length > 0) {
+        intakeProfileContext = intakeBits.join("\n");
       }
-    } else {
-      const numericUserId = Number(USER_ID);
+    }
 
-      if (!Number.isNaN(numericUserId)) {
+    // Fallback to users table if needed
+    if (!firstName || !companionName) {
+      if (USER_ID.includes("@")) {
         const { data: userRow, error: userError } = await supabase
           .from("users")
           .select("id, first_name, email, companion_name")
-          .eq("id", numericUserId)
-          .single();
+          .ilike("email", USER_ID)
+          .maybeSingle();
 
         if (userError) {
-          console.error("USER LOOKUP BY ID ERROR:", userError);
+          console.error("USER LOOKUP BY EMAIL ERROR:", userError);
         } else if (userRow) {
-          firstName = userRow.first_name || firstName;
-          companionName = userRow.companion_name || companionName;
+          firstName = firstName || userRow.first_name || "";
+          companionName = companionName || userRow.companion_name || "";
+        }
+      } else {
+        const numericUserId = Number(USER_ID);
+
+        if (!Number.isNaN(numericUserId)) {
+          const { data: userRow, error: userError } = await supabase
+            .from("users")
+            .select("id, first_name, email, companion_name")
+            .eq("id", numericUserId)
+            .maybeSingle();
+
+          if (userError) {
+            console.error("USER LOOKUP BY ID ERROR:", userError);
+          } else if (userRow) {
+            firstName = firstName || userRow.first_name || "";
+            companionName = companionName || userRow.companion_name || "";
+          }
         }
       }
+    }
+
+    if (!firstName) {
+      firstName = "there";
+    }
+
+    if (!companionName) {
+      companionName = "your companion";
     }
 
     const { data: recentNotes, error: notesError } = await supabase
@@ -217,7 +271,7 @@ Help the user:
 - make decisions that fit their life
 
 -----------------------------------
-SUBTLE EDUCATION (IMPORTANT)
+SUBTLE EDUCATION
 -----------------------------------
 
 When appropriate, gently introduce simple health principles tied to the user’s current situation.
@@ -228,16 +282,9 @@ Do this:
 - as an observation, not a rule
 
 Use soft language such as:
-- “may”
-- “can”
-- “your body may be signaling”
-
-Examples of principles you may introduce:
-- respecting natural hunger signals
-- allowing the digestive system to fully process and rest
-- avoiding constant grazing or over-fueling
-- leaving space between meals
-- giving the body time before eating again
+- may
+- can
+- your body may be signaling
 
 Do NOT:
 - lecture
@@ -246,50 +293,22 @@ Do NOT:
 - sound dogmatic
 
 -----------------------------------
-MEAL TIMING LOGIC
------------------------------------
-
-- Do NOT force fixed meal schedules
-- Do NOT require breakfast or specific timing
-- Do NOT prescribe fasting protocols
-
-Instead:
-- respect hunger signals
-- support eating when the body is ready
-- gently discourage constant snacking
-- reinforce giving the body time to process between meals
-
-Example tone:
-“If you’re not hungry yet, that’s something you can respect. Your body may still be processing, so giving it a little more time can actually help.”
-
------------------------------------
-PRIORITIES (ORDER MATTERS)
+PRIORITIES
 -----------------------------------
 
 1. Reduce pressure and shame
 2. Interrupt all-or-nothing thinking
 3. Offer one useful next step
-4. Lightly educate (if appropriate)
+4. Lightly educate if appropriate
 5. Reinforce agency and continuity
-
------------------------------------
-CORE IDENTITY
------------------------------------
-
-You are not trying to control the user.
-
-You are helping them:
-- stay in control of the next decision
-- feel supported
-- build confidence over time
-
-You are a steady presence for the hardest moments of the day.
 `;
 
     const clientContext = `
 Client first name: ${firstName}
 Companion name: ${companionName}
-Tone style: warm, calm, supportive, practical
+
+INTAKE PROFILE:
+${intakeProfileContext}
 
 RECENT MEMORY:
 ${recentMemoryContext}
