@@ -1,5 +1,3 @@
-console.log("WEBHOOK BODY:", JSON.stringify(req.body, null, 2));
-
 import { createClient } from '@supabase/supabase-js';
 
 export default async function handler(req, res) {
@@ -17,6 +15,7 @@ export default async function handler(req, res) {
 
     const body = req.body || {};
     const contact = body.contact || {};
+    const customFields = contact.customFields || {};
 
     const email = String(
       contact.email ||
@@ -31,8 +30,6 @@ export default async function handler(req, res) {
       ""
     ).trim();
 
-    const customFields = contact.customFields || {};
-
     const companionName = String(
       customFields.Companion_Name ||
       customFields.companion_name ||
@@ -41,33 +38,53 @@ export default async function handler(req, res) {
     ).trim();
 
     const timezone = String(
+      customFields.Timezone ||
+      customFields.timezone ||
       contact.timezone ||
       body.timezone ||
       ""
     ).trim();
 
     const primaryGoal = String(
-      body.primary_goal || ""
+      customFields.Primary_Goal ||
+      customFields.primary_goal ||
+      body.primary_goal ||
+      ""
     ).trim();
 
     const biggestChallenge = String(
-      body.biggest_challenge || ""
+      customFields.Biggest_Challenge ||
+      customFields.biggest_challenge ||
+      body.biggest_challenge ||
+      ""
     ).trim();
 
     const preferredCoachingTone = String(
-      body.preferred_coaching_tone || ""
+      customFields.Preferred_Coaching_Tone ||
+      customFields.preferred_coaching_tone ||
+      body.preferred_coaching_tone ||
+      ""
     ).trim();
 
     const movementPreference = String(
-      body.movement_preference || ""
+      customFields.Movement_Preference ||
+      customFields.movement_preference ||
+      body.movement_preference ||
+      ""
     ).trim();
 
     const foodPreference = String(
-      body.food_preference || ""
+      customFields.Food_Preference ||
+      customFields.food_preference ||
+      body.food_preference ||
+      ""
     ).trim();
 
     const mainCravingPattern = String(
-      body.main_craving_pattern || ""
+      customFields.Main_Craving_Pattern ||
+      customFields.main_craving_pattern ||
+      body.main_craving_pattern ||
+      ""
     ).trim();
 
     const intakeSummary = String(
