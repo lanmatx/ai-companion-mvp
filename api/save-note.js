@@ -12,9 +12,13 @@ export default async function handler(req, res) {
     );
 
     const { user_id, entry_date, entry_type, entry_text } = req.body || {};
-    const cleanUserId = (user_id || "").trim();
+    const cleanUserId = String(user_id || '').trim();
+    const cleanEntryType = String(entry_type || '').trim();
+    const cleanEntryText = String(entry_text || '').trim();
 
-    if (!cleanUserId || !entry_type || !entry_text) {
+    console.log('SAVE NOTE userId:', cleanUserId, typeof cleanUserId);
+
+    if (!cleanUserId || !cleanEntryType || !cleanEntryText) {
       return res.status(400).json({ error: 'Missing required fields' });
     }
 
@@ -22,8 +26,8 @@ export default async function handler(req, res) {
       {
         user_id: cleanUserId,
         entry_date: entry_date || null,
-        entry_type,
-        entry_text
+        entry_type: cleanEntryType,
+        entry_text: cleanEntryText
       }
     ]);
 

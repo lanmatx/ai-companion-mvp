@@ -12,7 +12,9 @@ export default async function handler(req, res) {
     );
 
     const body = req.body || {};
-    const userId = (body.user_id || "").trim();
+    const userId = String(body.user_id || '').trim();
+
+    console.log('GET NOTES userId:', userId, typeof userId);
 
     if (!userId) {
       return res.status(400).json({ error: 'Missing user_id' });
@@ -34,6 +36,9 @@ export default async function handler(req, res) {
     return res.status(200).json({ notes: data || [] });
   } catch (error) {
     console.error('SERVER ERROR:', error);
-    return res.status(500).json({ error: 'Internal server error' });
+    return res.status(500).json({
+      error: 'Internal server error',
+      details: error.message || 'Unknown error'
+    });
   }
 }
