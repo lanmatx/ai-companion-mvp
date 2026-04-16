@@ -416,14 +416,31 @@
 const companionName = getCompanionName();
 const senderName = companionName || "Your companion";
 
+const firstName = getFirstName();
+const companionName = getCompanionName();
+const senderName = companionName || "Your companion";
+
 addMessage(
   senderName,
   firstName
-    ? `Hi ${firstName} — I’m here with you.\n\nQuick check-in:\nAre you feeling okay, low-energy, or tempted right now?`
-    : `Hi — I’m here with you.\n\nQuick check-in:\nAre you feeling okay, low-energy, or tempted right now?`,
+    ? `Hi ${firstName} — I’m here with you.
+
+I’d love to get a quick feel for what works best for you so I can support you in a way that feels natural.
+
+What would help me most right now:
+1. what kinds of foods or flavors you usually gravitate toward
+2. when things tend to get hardest for you
+3. whether you prefer calm support, direct support, or upbeat encouragement`
+    : `Hi — I’m here with you.
+
+I’d love to get a quick feel for what works best for you so I can support you in a way that feels natural.
+
+What would help me most right now:
+1. what kinds of foods or flavors you usually gravitate toward
+2. when things tend to get hardest for you
+3. whether you prefer calm support, direct support, or upbeat encouragement`,
   "neville"
 );
-
     updateCounter();
 
     console.log("ACTIVE USER ID:", getUserId());
