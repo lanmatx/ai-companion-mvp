@@ -101,6 +101,7 @@
   <div class="container">
     <h1 id="page-title">Here’s your recent progress</h1>
     <div class="subtext">Your latest wins, struggles, milestones, and progress notes.</div>
+    <div id="summary" class="subtext"></div>
 
     <div id="notes-container" class="loading">Loading your notes...</div>
 
@@ -111,6 +112,7 @@
     const container = document.getElementById("notes-container");
     const pageTitle = document.getElementById("page-title");
     const backLink = document.getElementById("back-link");
+    const summary = document.getElementById("summary");
 
     function getQueryParam(name) {
       const params = new URLSearchParams(window.location.search);
@@ -167,6 +169,7 @@
     backLink.href = "https://chat.embraceustudio.com/";
 
     if (!userId) {
+      summary.textContent = "";
       container.className = "error";
       container.textContent = "Could not identify your account to load notes.";
       console.error("Missing user_id for notes page.");
@@ -190,10 +193,24 @@
           const notes = data.notes || [];
 
           if (notes.length === 0) {
+            summary.textContent = "Wins: 0 • Struggles: 0 • Milestones: 0";
             container.className = "empty";
             container.textContent = "No entries yet.";
             return;
           }
+
+          const counts = {
+            win: 0,
+            struggle: 0,
+            milestone: 0
+          };
+
+          notes.forEach((n) => {
+            const type = (n.entry_type || "").toLowerCase();
+            if (counts[type] !== undefined) counts[type]++;
+          });
+
+          summary.textContent = `Wins: ${counts.win} • Struggles: ${counts.struggle} • Milestones: ${counts.milestone}`;
 
           container.className = "";
           container.innerHTML = notes.map(note => `
@@ -208,6 +225,7 @@
           `).join("");
         })
         .catch((error) => {
+          summary.textContent = "";
           container.className = "error";
           container.textContent = "Could not load notes right now.";
           console.error("NOTES LOAD ERROR:", error);
