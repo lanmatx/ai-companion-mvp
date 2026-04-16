@@ -33,6 +33,15 @@ export default async function handler(req, res) {
     let recentMemoryContext = "No recent notes.";
     let intakeProfileContext = "No intake profile available yet.";
 
+    let primaryGoal = "";
+    let biggestChallenge = "";
+    let preferredCoachingTone = "";
+    let movementPreference = "";
+    let foodPreference = "";
+    let mainCravingPattern = "";
+    let timezone = "";
+    let intakeSummary = "";
+
     // Load intake profile first
     const { data: intakeRow, error: intakeError } = await supabase
       .from("intake_profiles")
@@ -59,15 +68,24 @@ export default async function handler(req, res) {
       firstName = intakeRow.first_name || firstName;
       companionName = intakeRow.companion_name || companionName;
 
+      primaryGoal = intakeRow.primary_goal || "";
+      biggestChallenge = intakeRow.biggest_challenge || "";
+      preferredCoachingTone = intakeRow.preferred_coaching_tone || "";
+      movementPreference = intakeRow.movement_preference || "";
+      foodPreference = intakeRow.food_preference || "";
+      mainCravingPattern = intakeRow.main_craving_pattern || "";
+      timezone = intakeRow.timezone || "";
+      intakeSummary = intakeRow.intake_summary || "";
+
       const intakeBits = [
-        intakeRow.primary_goal ? `Primary goal: ${intakeRow.primary_goal}` : "",
-        intakeRow.biggest_challenge ? `Biggest challenge: ${intakeRow.biggest_challenge}` : "",
-        intakeRow.preferred_coaching_tone ? `Preferred coaching tone: ${intakeRow.preferred_coaching_tone}` : "",
-        intakeRow.movement_preference ? `Movement preference: ${intakeRow.movement_preference}` : "",
-        intakeRow.food_preference ? `Food preference: ${intakeRow.food_preference}` : "",
-        intakeRow.main_craving_pattern ? `Main craving pattern: ${intakeRow.main_craving_pattern}` : "",
-        intakeRow.timezone ? `Timezone: ${intakeRow.timezone}` : "",
-        intakeRow.intake_summary ? `Intake summary: ${intakeRow.intake_summary}` : ""
+        primaryGoal ? `Primary goal: ${primaryGoal}` : "",
+        biggestChallenge ? `Biggest challenge: ${biggestChallenge}` : "",
+        preferredCoachingTone ? `Preferred coaching tone: ${preferredCoachingTone}` : "",
+        movementPreference ? `Movement preference: ${movementPreference}` : "",
+        foodPreference ? `Food preference: ${foodPreference}` : "",
+        mainCravingPattern ? `Main craving pattern: ${mainCravingPattern}` : "",
+        timezone ? `Timezone: ${timezone}` : "",
+        intakeSummary ? `Intake summary: ${intakeSummary}` : ""
       ].filter(Boolean);
 
       if (intakeBits.length > 0) {
@@ -261,6 +279,15 @@ You support the user in:
 PERSONALIZATION PRINCIPLES
 -----------------------------------
 
+Always adapt to the user.
+
+Do not impose a fixed system.
+
+Help the user:
+- work with their real schedule
+- respond to their real hunger signals
+- make decisions that fit their life
+
 -----------------------------------
 EARLY CONVERSATION PRIORITY
 -----------------------------------
@@ -281,18 +308,14 @@ Ask at most 1–2 short preference questions at a time, and only when it feels n
 When the user is new, your first reply should:
 - feel warm and personal
 - reinforce that support will be tailored to them
+- reflect their goal or challenge if known
 - invite a short response about their preferences
 
 Avoid generic “How can I help?” openings when more useful preference-gathering would serve better.
 
-Always adapt to the user.
-
-Do not impose a fixed system.
-
-Help the user:
-- work with their real schedule
-- respond to their real hunger signals
-- make decisions that fit their life
+If the user’s primary goal is known, naturally anchor support to that goal.
+If the user’s biggest challenge is known, acknowledge it in a calm, non-dramatic way.
+If the user’s preferred coaching tone is known, match it.
 
 -----------------------------------
 SUBTLE EDUCATION
@@ -330,6 +353,11 @@ PRIORITIES
     const clientContext = `
 Client first name: ${firstName}
 Companion name: ${companionName}
+
+KNOWN HIGH-PRIORITY CONTEXT:
+Primary goal: ${primaryGoal || "Not specified"}
+Biggest challenge: ${biggestChallenge || "Not specified"}
+Preferred coaching tone: ${preferredCoachingTone || "Not specified"}
 
 INTAKE PROFILE:
 ${intakeProfileContext}
@@ -383,7 +411,7 @@ ${message}`
     const reply =
       data.output_text ||
       data.output?.[0]?.content?.[0]?.text ||
-      `I’m here with you, ${firstName}. Tell me what’s going on right now.`;
+      `I’m here with you, ${firstName}. To support you in a way that fits you, tell me what usually feels hardest — food choices, cravings, energy, or consistency?`;
 
     try {
       const lowerMsg = message.toLowerCase();
