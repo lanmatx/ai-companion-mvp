@@ -72,6 +72,7 @@
     .text {
       font-size: 1.05rem;
       line-height: 1.5;
+      white-space: pre-wrap;
     }
 
     .empty,
@@ -98,20 +99,38 @@
 </head>
 <body>
   <div class="container">
-    <h1>Hi Lori — here’s your recent progress</h1>
+    <h1 id="page-title">Here’s your recent progress</h1>
     <div class="subtext">Your latest wins, struggles, milestones, and progress notes.</div>
 
     <div id="notes-container" class="loading">Loading your notes...</div>
 
-    <a class="back-link" href="https://chat.embraceustudio.com/">← Back to Neville</a>
+    <a id="back-link" class="back-link" href="https://chat.embraceustudio.com/">← Back to your companion</a>
   </div>
 
   <script>
     const container = document.getElementById("notes-container");
+    const pageTitle = document.getElementById("page-title");
+    const backLink = document.getElementById("back-link");
+
+    function getQueryParam(name) {
+      const params = new URLSearchParams(window.location.search);
+      return (params.get(name) || "").trim();
+    }
+
+    function escapeHtml(value) {
+      return String(value || "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#39;");
+    }
 
     function formatDate(dateString) {
       if (!dateString) return "No date";
       const date = new Date(dateString);
+      if (Number.isNaN(date.getTime())) return "No date";
+
       return date.toLocaleDateString(undefined, {
         year: "numeric",
         month: "short",
@@ -123,39 +142,77 @@
       return (type || "").toLowerCase().replace(/\s+/g, "-");
     }
 
-    fetch("/api/get-notes")
-      .then(async (response) => {
-        const data = await response.json();
+    const userId =
+      getQueryParam("user_id") ||
+      localStorage.getItem("user_id") ||
+      "";
 
-        if (!response.ok) {
-          throw new Error(data.error || "Failed to load notes");
-        }
+    const firstName =
+      getQueryParam("first_name") ||
+      localStorage.getItem("first_name") ||
+      "";
 
-        const notes = data.notes || [];
+    const companionName =
+      getQueryParam("companion_name") ||
+      localStorage.getItem("companion_name") ||
+      "your companion";
 
-        if (notes.length === 0) {
-          container.className = "empty";
-          container.textContent = "No entries yet.";
-          return;
-        }
+    if (firstName) {
+      pageTitle.textContent = `Hi ${firstName} — here’s your recent progress`;
+    } else {
+      pageTitle.textContent = "Here’s your recent progress";
+    }
 
-        container.className = "";
-        container.innerHTML = notes.map(note => `
-          <div class="entry">
-            <div class="meta">
-              <span>${formatDate(note.entry_date || note.created_at)}</span>
-              &nbsp;•&nbsp;
-              <span class="type ${normalizeType(note.entry_type)}">${note.entry_type}</span>
-            </div>
-            <div class="text">${note.entry_text}</div>
-          </div>
-        `).join("");
+    backLink.textContent = `← Back to ${companionName}`;
+    backLink.href = "https://chat.embraceustudio.com/";
+
+    if (!userId) {
+      container.className = "error";
+      container.textContent = "Could not identify your account to load notes.";
+      console.error("Missing user_id for notes page.");
+    } else {
+      fetch("/api/get-notes", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          user_id: String(userId)
+        })
       })
-      .catch((error) => {
-        container.className = "error";
-        container.textContent = "Could not load notes right now.";
-        console.error(error);
-      });
+        .then(async (response) => {
+          const data = await response.json();
+
+          if (!response.ok) {
+            throw new Error(data.error || "Failed to load notes");
+          }
+
+          const notes = data.notes || [];
+
+          if (notes.length === 0) {
+            container.className = "empty";
+            container.textContent = "No entries yet.";
+            return;
+          }
+
+          container.className = "";
+          container.innerHTML = notes.map(note => `
+            <div class="entry">
+              <div class="meta">
+                <span>${escapeHtml(formatDate(note.entry_date || note.created_at))}</span>
+                &nbsp;•&nbsp;
+                <span class="type ${escapeHtml(normalizeType(note.entry_type))}">${escapeHtml(note.entry_type)}</span>
+              </div>
+              <div class="text">${escapeHtml(note.entry_text)}</div>
+            </div>
+          `).join("");
+        })
+        .catch((error) => {
+          container.className = "error";
+          container.textContent = "Could not load notes right now.";
+          console.error("NOTES LOAD ERROR:", error);
+        });
+    }
   </script>
 </body>
 </html>
