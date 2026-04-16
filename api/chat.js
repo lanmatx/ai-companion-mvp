@@ -131,20 +131,18 @@ export default async function handler(req, res) {
     // Fallback to users table if needed
     if (!firstName || !companionName) {
       if (USER_ID.includes("@")) {
-        const { data: userRow, error: userError } = await supabase
-          .from("users")
-          .select("id, first_name, email, companion_name")
-          .ilike("email", USER_ID)
-          .maybeSingle();
+  const { data: userRow, error: userError } = await supabase
+    .from("users")
+    .select("id, first_name, email, companion_name")
+    .ilike("email", USER_ID)
+    .maybeSingle();
 
-        if (userError) {
-          console.error("USER LOOKUP BY EMAIL ERROR:", userError);
-        } else if (userRow) {
-          firstName = firstName || userRow.first_name || "";
-          companionName = companionName || userRow.companion_name || "";
-        }
-      } else {
-        const numericUserId = Number(USER_ID);
+  if (userError) {
+    console.error("USER LOOKUP BY EMAIL ERROR:", userError);
+  } else if (userRow) {
+    USER_ID = String(userRow.id); // convert email-based USER_ID into numeric user id
+    firstName = firstName || userRow.first_name || "";
+    companionName = companionName || userRow.companion_name || "";
 
         if (!Number.isNaN(numericUserId)) {
           const { data: userRow, error: userError } = await supabase
@@ -189,6 +187,9 @@ export default async function handler(req, res) {
         })
         .join("\n");
     }
+
+console.log("MEMORY CANDIDATES:", memoryCandidates);
+console.log("USER_ID BEFORE MEMORY SAVE:", USER_ID, typeof USER_ID);
 
     // ===== SAVE NEW MEMORY =====
 try {
