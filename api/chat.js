@@ -219,7 +219,7 @@ export default async function handler(req, res) {
               .from("user_memory")
               .insert([
                 {
-                  user_id: Number(USER_ID),
+                  user_id: USER_ID,
                   memory_text: memoryText,
                   source: "chat"
                 }
