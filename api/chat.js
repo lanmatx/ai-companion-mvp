@@ -1,5 +1,38 @@
 import { createClient } from '@supabase/supabase-js';
 
+function extractMemoryCandidates(message) {
+  const text = (message || "").trim();
+  if (!text) return [];
+
+  const lowered = text.toLowerCase();
+
+  const patterns = [
+    /i struggle with .+/i,
+    /i struggle at .+/i,
+    /i have trouble .+/i,
+    /i crave .+/i,
+    /i tend to .+/i,
+    /i usually .+/i,
+    /i often .+/i,
+    /i prefer .+/i,
+    /i like .+/i,
+    /i don't like .+/i,
+    /i do not like .+/i,
+    /my hardest time is .+/i,
+    /evenings are hard for me/i,
+    /nights are hard for me/i,
+    /after dinner .+/i,
+    /stress makes me .+/i
+  ];
+
+  const matches = patterns
+    .filter((pattern) => pattern.test(text))
+    .map(() => text)
+    .slice(0, 1);
+
+  return [...new Set(matches)];
+}
+
 export default async function handler(req, res) {
   if (req.method !== "POST") {
     return res.status(405).json({ error: "Method not allowed" });
@@ -15,6 +48,8 @@ export default async function handler(req, res) {
     const message = (body.message || "").trim();
 
     let USER_ID = (body.user_id || "").trim();
+    
+    const memoryCandidates = extractMemoryCandidates(message);
 
     if (!USER_ID && body.email) {
       USER_ID = String(body.email).trim();
@@ -154,6 +189,47 @@ export default async function handler(req, res) {
         })
         .join("\n");
     }
+
+    // ===== SAVE NEW MEMORY =====
+try {
+  if (memoryCandidates.length > 0) {
+    for (const memoryText of memoryCandidates) {
+      const cleanedMemory = memoryText.trim().toLowerCase();
+
+      // lightweight duplicate check (last 10 memories)
+      const { data: existingMemories } = await supabase
+        .from("user_memory")
+        .select("memory_text")
+        .eq("user_id", USER_ID)
+        .order("created_at", { ascending: false })
+        .limit(10);
+
+      const isDuplicate = (existingMemories || []).some(
+        (m) => (m.memory_text || "").trim().toLowerCase() === cleanedMemory
+      );
+
+      if (!isDuplicate) {
+        const { error: insertError } = await supabase
+          .from("user_memory")
+          .insert([
+            {
+              user_id: USER_ID,
+              memory_text: memoryText,
+              source: "chat"
+            }
+          ]);
+
+        if (insertError) {
+          console.error("MEMORY INSERT ERROR:", insertError);
+        } else {
+          console.log("MEMORY SAVED:", memoryText);
+        }
+      }
+    }
+  }
+} catch (memorySaveError) {
+  console.error("MEMORY SAVE BLOCK ERROR:", memorySaveError);
+}
 
     const systemPrompt = `
 You are ${companionName}, a personalized AI Health Companion for Living Longevity.
