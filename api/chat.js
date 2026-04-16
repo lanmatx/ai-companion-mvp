@@ -170,24 +170,47 @@ export default async function handler(req, res) {
       companionName = "your companion";
     }
 
-    const { data: recentNotes, error: notesError } = await supabase
-      .from("progress_logs")
-      .select("entry_type, entry_text, entry_date, created_at")
-      .eq("user_id", USER_ID)
-      .in("entry_type", ["struggle", "win", "milestone"])
-      .order("created_at", { ascending: false })
-      .limit(5);
+    const memoryLines = [];
 
-    if (notesError) {
-      console.error("MEMORY LOOKUP ERROR:", notesError);
-    } else if (recentNotes && recentNotes.length > 0) {
-      recentMemoryContext = recentNotes
-        .map((note) => {
-          const date = note.entry_date || "";
-          return `- ${date} [${note.entry_type}] ${note.entry_text}`;
-        })
-        .join("\n");
-    }
+// Recent progress logs
+const { data: recentNotes, error: notesError } = await supabase
+  .from("progress_logs")
+  .select("entry_type, entry_text, entry_date, created_at")
+  .eq("user_id", USER_ID)
+  .in("entry_type", ["struggle", "win", "milestone"])
+  .order("created_at", { ascending: false })
+  .limit(5);
+
+if (notesError) {
+  console.error("PROGRESS LOG MEMORY LOOKUP ERROR:", notesError);
+} else if (recentNotes && recentNotes.length > 0) {
+  memoryLines.push(
+    ...recentNotes.map((note) => {
+      const date = note.entry_date || "";
+      return `- ${date} [${note.entry_type}] ${note.entry_text}`;
+    })
+  );
+}
+
+// Saved user memory
+const { data: savedMemories, error: savedMemoryError } = await supabase
+  .from("user_memory")
+  .select("memory_text, created_at")
+  .eq("user_id", USER_ID)
+  .order("created_at", { ascending: false })
+  .limit(5);
+
+if (savedMemoryError) {
+  console.error("USER MEMORY LOOKUP ERROR:", savedMemoryError);
+} else if (savedMemories && savedMemories.length > 0) {
+  memoryLines.push(
+    ...savedMemories.map((item) => `- [memory] ${item.memory_text}`)
+  );
+}
+
+if (memoryLines.length > 0) {
+  recentMemoryContext = memoryLines.join("\n");
+}
 
     console.log("MEMORY CANDIDATES:", memoryCandidates);
     console.log("USER_ID BEFORE MEMORY SAVE:", USER_ID, typeof USER_ID);
