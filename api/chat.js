@@ -4,8 +4,6 @@ function extractMemoryCandidates(message) {
   const text = (message || "").trim();
   if (!text) return [];
 
-  const lowered = text.toLowerCase();
-
   const patterns = [
     /i struggle with .+/i,
     /i struggle at .+/i,
@@ -47,8 +45,7 @@ export default async function handler(req, res) {
     const body = req.body || {};
     const message = (body.message || "").trim();
 
-    let USER_ID = (body.user_id || "").trim();
-    
+    let USER_ID = String(body.user_id || "").trim();
     const memoryCandidates = extractMemoryCandidates(message);
 
     if (!USER_ID && body.email) {
@@ -63,8 +60,8 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: "Message is required" });
     }
 
-    let firstName = (body.first_name || "").trim() || "";
-    let companionName = (body.companion_name || "").trim() || "";
+    let firstName = (body.first_name || "").trim();
+    let companionName = (body.companion_name || "").trim();
     let recentMemoryContext = "No recent notes.";
     let intakeProfileContext = "No intake profile available yet.";
 
@@ -131,18 +128,21 @@ export default async function handler(req, res) {
     // Fallback to users table if needed
     if (!firstName || !companionName) {
       if (USER_ID.includes("@")) {
-  const { data: userRow, error: userError } = await supabase
-    .from("users")
-    .select("id, first_name, email, companion_name")
-    .ilike("email", USER_ID)
-    .maybeSingle();
+        const { data: userRow, error: userError } = await supabase
+          .from("users")
+          .select("id, first_name, email, companion_name")
+          .ilike("email", USER_ID)
+          .maybeSingle();
 
-  if (userError) {
-    console.error("USER LOOKUP BY EMAIL ERROR:", userError);
-  } else if (userRow) {
-    USER_ID = String(userRow.id); // convert email-based USER_ID into numeric user id
-    firstName = firstName || userRow.first_name || "";
-    companionName = companionName || userRow.companion_name || "";
+        if (userError) {
+          console.error("USER LOOKUP BY EMAIL ERROR:", userError);
+        } else if (userRow) {
+          USER_ID = String(userRow.id);
+          firstName = firstName || userRow.first_name || "";
+          companionName = companionName || userRow.companion_name || "";
+        }
+      } else {
+        const numericUserId = Number(USER_ID);
 
         if (!Number.isNaN(numericUserId)) {
           const { data: userRow, error: userError } = await supabase
@@ -154,6 +154,7 @@ export default async function handler(req, res) {
           if (userError) {
             console.error("USER LOOKUP BY ID ERROR:", userError);
           } else if (userRow) {
+            USER_ID = String(userRow.id);
             firstName = firstName || userRow.first_name || "";
             companionName = companionName || userRow.companion_name || "";
           }
@@ -188,49 +189,53 @@ export default async function handler(req, res) {
         .join("\n");
     }
 
-console.log("MEMORY CANDIDATES:", memoryCandidates);
-console.log("USER_ID BEFORE MEMORY SAVE:", USER_ID, typeof USER_ID);
+    console.log("MEMORY CANDIDATES:", memoryCandidates);
+    console.log("USER_ID BEFORE MEMORY SAVE:", USER_ID, typeof USER_ID);
 
     // ===== SAVE NEW MEMORY =====
-try {
-  if (memoryCandidates.length > 0) {
-    for (const memoryText of memoryCandidates) {
-      const cleanedMemory = memoryText.trim().toLowerCase();
+    try {
+      if (memoryCandidates.length > 0) {
+        for (const memoryText of memoryCandidates) {
+          const cleanedMemory = memoryText.trim().toLowerCase();
 
-      // lightweight duplicate check (last 10 memories)
-      const { data: existingMemories } = await supabase
-        .from("user_memory")
-        .select("memory_text")
-        .eq("user_id", USER_ID)
-        .order("created_at", { ascending: false })
-        .limit(10);
+          const { data: existingMemories, error: existingError } = await supabase
+            .from("user_memory")
+            .select("memory_text")
+            .eq("user_id", USER_ID)
+            .order("created_at", { ascending: false })
+            .limit(10);
 
-      const isDuplicate = (existingMemories || []).some(
-        (m) => (m.memory_text || "").trim().toLowerCase() === cleanedMemory
-      );
+          if (existingError) {
+            console.error("MEMORY DUPLICATE CHECK ERROR:", existingError);
+            continue;
+          }
 
-      if (!isDuplicate) {
-        const { error: insertError } = await supabase
-          .from("user_memory")
-          .insert([
-            {
-              user_id: USER_ID,
-              memory_text: memoryText,
-              source: "chat"
+          const isDuplicate = (existingMemories || []).some(
+            (m) => (m.memory_text || "").trim().toLowerCase() === cleanedMemory
+          );
+
+          if (!isDuplicate) {
+            const { error: insertError } = await supabase
+              .from("user_memory")
+              .insert([
+                {
+                  user_id: Number(USER_ID),
+                  memory_text: memoryText,
+                  source: "chat"
+                }
+              ]);
+
+            if (insertError) {
+              console.error("MEMORY INSERT ERROR:", insertError);
+            } else {
+              console.log("MEMORY SAVED:", memoryText);
             }
-          ]);
-
-        if (insertError) {
-          console.error("MEMORY INSERT ERROR:", insertError);
-        } else {
-          console.log("MEMORY SAVED:", memoryText);
+          }
         }
       }
+    } catch (memorySaveError) {
+      console.error("MEMORY SAVE BLOCK ERROR:", memorySaveError);
     }
-  }
-} catch (memorySaveError) {
-  console.error("MEMORY SAVE BLOCK ERROR:", memorySaveError);
-}
 
     const systemPrompt = `
 You are ${companionName}, a personalized AI Health Companion for Living Longevity.
