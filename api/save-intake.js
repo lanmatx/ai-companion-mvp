@@ -1,3 +1,5 @@
+console.log("WEBHOOK BODY:", JSON.stringify(req.body, null, 2));
+
 import { createClient } from '@supabase/supabase-js';
 
 export default async function handler(req, res) {
