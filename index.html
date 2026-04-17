@@ -421,14 +421,15 @@
 
     updateHeader();
 
-    const welcomeFirstName = getFirstName();
-    const welcomeCompanionName = getCompanionName();
-    const senderName = welcomeCompanionName || "Your companion";
+    try {
+  const welcomeFirstName = getFirstName();
+  const welcomeCompanionName = getCompanionName();
+  const senderName = welcomeCompanionName || "Your companion";
 
-    addMessage(
-      senderName,
-      welcomeFirstName
-        ? `Hi ${welcomeFirstName} — I’m here with you.
+  addMessage(
+    senderName,
+    welcomeFirstName
+      ? `Hi ${welcomeFirstName} — I’m here with you.
 
 I’d love to get a quick feel for what works best for you so I can support you in a way that feels natural.
 
@@ -436,7 +437,7 @@ What would help me most right now:
 1. what kinds of foods or flavors you usually gravitate toward
 2. when things tend to get hardest for you
 3. whether you prefer calm support, direct support, or upbeat encouragement`
-        : `Hi — I’m here with you.
+      : `Hi — I’m here with you.
 
 I’d love to get a quick feel for what works best for you so I can support you in a way that feels natural.
 
@@ -444,8 +445,11 @@ What would help me most right now:
 1. what kinds of foods or flavors you usually gravitate toward
 2. when things tend to get hardest for you
 3. whether you prefer calm support, direct support, or upbeat encouragement`,
-      "neville"
-    );
+    "neville"
+  );
+} catch (e) {
+  console.error("INIT ERROR:", e);
+}
 
     updateCounter();
 
