@@ -267,27 +267,27 @@
     }
 
     function getCompanionName() {
-  const companionName = (localStorage.getItem("companion_name") || "").trim();
+      const companionName = (localStorage.getItem("companion_name") || "").trim();
 
-  if (!companionName || companionName.includes("{{")) {
-    return "";
-  }
+      if (!companionName || companionName.includes("{{")) {
+        return "";
+      }
 
-  return companionName;
-}
+      return companionName;
+    }
 
     function updateHeader() {
-  const firstName = getFirstName();
-  const companionName = getCompanionName();
+      const firstName = getFirstName();
+      const companionName = getCompanionName();
 
-  if (firstName && companionName) {
-    heroTitle.textContent = `Hi ${firstName}, I’m ${companionName} — your health companion`;
-  } else if (companionName) {
-    heroTitle.textContent = `Hi, I’m ${companionName} — your health companion`;
-  } else {
-    heroTitle.textContent = `Hi, I’m your health companion`;
-  }
-}
+      if (firstName && companionName) {
+        heroTitle.textContent = `Hi ${firstName}, I’m ${companionName} — your health companion`;
+      } else if (companionName) {
+        heroTitle.textContent = `Hi, I’m ${companionName} — your health companion`;
+      } else {
+        heroTitle.textContent = `Hi, I’m your health companion`;
+      }
+    }
 
     function addMessage(sender, text, type) {
       const div = document.createElement("div");
@@ -298,10 +298,11 @@
     }
 
     function addLoading() {
+      const displayName = getCompanionName() || "Your companion";
       const div = document.createElement("div");
       div.className = "msg neville loading";
       div.id = "loadingMsg";
-      div.innerHTML = `<strong>${escapeHtml(getCompanionName())}:</strong><br>Thinking...`;
+      div.innerHTML = `<strong>${escapeHtml(displayName)}:</strong><br>Thinking...`;
       chatbox.appendChild(div);
       chatbox.scrollTop = chatbox.scrollHeight;
     }
@@ -327,7 +328,7 @@
     async function sendToCompanion(message) {
       const user_id = getUserId();
       const first_name = getFirstName();
-      const companion_name = getCompanionName();
+      const companion_name = getCompanionName() || "Your companion";
 
       if (!user_id) {
         addMessage(companion_name, "I need your email to continue.", "neville");
@@ -371,11 +372,19 @@
         if (data.reply) {
           addMessage(data.companion_name || companion_name, data.reply, "neville");
         } else {
-          addMessage(companion_name, "I’m here with you, but I hit a technical issue. Please try again.", "neville");
+          addMessage(
+            companion_name,
+            "I’m here with you, but I hit a technical issue. Please try again.",
+            "neville"
+          );
         }
       } catch (error) {
         removeLoading();
-        addMessage(getCompanionName(), "I’m having trouble connecting right now. Please try again in a moment.", "neville");
+        addMessage(
+          getCompanionName() || "Your companion",
+          "I’m having trouble connecting right now. Please try again in a moment.",
+          "neville"
+        );
         console.error(error);
       } finally {
         sendBtn.disabled = false;
@@ -403,7 +412,7 @@
 
     input.addEventListener("input", updateCounter);
 
-    input.addEventListener("keydown", function(e) {
+    input.addEventListener("keydown", function (e) {
       if (e.key === "Enter" && !e.shiftKey) {
         e.preventDefault();
         sendMessage();
@@ -412,18 +421,14 @@
 
     updateHeader();
 
-    const firstName = getFirstName();
-const companionName = getCompanionName();
-const senderName = companionName || "Your companion";
+    const welcomeFirstName = getFirstName();
+    const welcomeCompanionName = getCompanionName();
+    const senderName = welcomeCompanionName || "Your companion";
 
-const firstName = getFirstName();
-const companionName = getCompanionName();
-const senderName = companionName || "Your companion";
-
-addMessage(
-  senderName,
-  firstName
-    ? `Hi ${firstName} — I’m here with you.
+    addMessage(
+      senderName,
+      welcomeFirstName
+        ? `Hi ${welcomeFirstName} — I’m here with you.
 
 I’d love to get a quick feel for what works best for you so I can support you in a way that feels natural.
 
@@ -431,7 +436,7 @@ What would help me most right now:
 1. what kinds of foods or flavors you usually gravitate toward
 2. when things tend to get hardest for you
 3. whether you prefer calm support, direct support, or upbeat encouragement`
-    : `Hi — I’m here with you.
+        : `Hi — I’m here with you.
 
 I’d love to get a quick feel for what works best for you so I can support you in a way that feels natural.
 
@@ -439,8 +444,9 @@ What would help me most right now:
 1. what kinds of foods or flavors you usually gravitate toward
 2. when things tend to get hardest for you
 3. whether you prefer calm support, direct support, or upbeat encouragement`,
-  "neville"
-);
+      "neville"
+    );
+
     updateCounter();
 
     console.log("ACTIVE USER ID:", getUserId());
