@@ -422,14 +422,19 @@
     updateHeader();
 
     try {
-  const welcomeFirstName = getFirstName();
-  const welcomeCompanionName = getCompanionName();
-  const senderName = welcomeCompanionName || "Your companion";
+  const currentUserId = getUserId() || "anonymous";
+  const onboardingKey = `nova_onboarding_complete_${currentUserId}`;
+  const hasCompletedOnboarding = localStorage.getItem(onboardingKey);
 
-  addMessage(
-    senderName,
-    welcomeFirstName
-      ? `Hi ${welcomeFirstName} — I’m here with you.
+  if (!hasCompletedOnboarding) {
+    const welcomeFirstName = getFirstName();
+    const welcomeCompanionName = getCompanionName();
+    const senderName = welcomeCompanionName || "Your companion";
+
+    addMessage(
+      senderName,
+      welcomeFirstName
+        ? `Hi ${welcomeFirstName} — I’m here with you.
 
 I’d love to get a quick feel for what works best for you so I can support you in a way that feels natural.
 
@@ -437,7 +442,7 @@ What would help me most right now:
 1. what kinds of foods or flavors you usually gravitate toward
 2. when things tend to get hardest for you
 3. whether you prefer calm support, direct support, or upbeat encouragement`
-      : `Hi — I’m here with you.
+        : `Hi — I’m here with you.
 
 I’d love to get a quick feel for what works best for you so I can support you in a way that feels natural.
 
@@ -445,8 +450,11 @@ What would help me most right now:
 1. what kinds of foods or flavors you usually gravitate toward
 2. when things tend to get hardest for you
 3. whether you prefer calm support, direct support, or upbeat encouragement`,
-    "neville"
-  );
+      "neville"
+    );
+
+    localStorage.setItem(onboardingKey, "true");
+  }
 } catch (e) {
   console.error("INIT ERROR:", e);
 }
