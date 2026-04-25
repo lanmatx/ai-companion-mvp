@@ -16,13 +16,12 @@ function getProgramConfig(programType) {
     end_date: null
   };
 }
+
 export default async function handler(req, res) {
-  // CORS headers
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type");
 
-  // Handle preflight
   if (req.method === "OPTIONS") {
     return res.status(200).end();
   }
@@ -37,8 +36,6 @@ export default async function handler(req, res) {
       process.env.SUPABASE_SERVICE_ROLE_KEY
     );
 
-    console.log("WEBHOOK BODY:", JSON.stringify(req.body, null, 2));
-
     const body = req.body || {};
     const contact = body.contact || {};
     const customFields = contact.customFields || {};
@@ -50,71 +47,19 @@ export default async function handler(req, res) {
       ""
     ).trim().toLowerCase();
 
-    const firstName = String(
-      contact.firstName ||
-      body.first_name ||
-      ""
-    ).trim();
+    const firstName = String(contact.firstName || body.first_name || "").trim();
+    const companionName = String(customFields.Companion_Name || customFields.companion_name || body.companion_name || "").trim();
 
-    const companionName = String(
-      customFields.Companion_Name ||
-      customFields.companion_name ||
-      body.companion_name ||
-      ""
-    ).trim();
-
-    const timezone = String(
-      customFields.Timezone ||
-      customFields.timezone ||
-      contact.timezone ||
-      body.timezone ||
-      ""
-    ).trim();
-
-    const primaryGoal = String(
-      customFields.Primary_Goal ||
-      customFields.primary_goal ||
-      body.primary_goal ||
-      ""
-    ).trim();
-
-    const biggestChallenge = String(
-      customFields.Biggest_Challenge ||
-      customFields.biggest_challenge ||
-      body.biggest_challenge ||
-      ""
-    ).trim();
-
-    const preferredCoachingTone = String(
-      customFields.Preferred_Coaching_Tone ||
-      customFields.preferred_coaching_tone ||
-      body.preferred_coaching_tone ||
-      ""
-    ).trim();
-
-    const movementPreference = String(
-      customFields.Movement_Preference ||
-      customFields.movement_preference ||
-      body.movement_preference ||
-      ""
-    ).trim();
-
-    const foodPreference = String(
-      customFields.Food_Preference ||
-      customFields.food_preference ||
-      body.food_preference ||
-      ""
-    ).trim();
-
-    const mainCravingPattern = String(
-      customFields.Main_Craving_Pattern ||
-      customFields.main_craving_pattern ||
-      body.main_craving_pattern ||
-      ""
-    ).trim();
+    const timezone = String(customFields.Timezone || customFields.timezone || contact.timezone || body.timezone || "").trim();
+    const primaryGoal = String(customFields.Primary_Goal || customFields.primary_goal || body.primary_goal || "").trim();
+    const biggestChallenge = String(customFields.Biggest_Challenge || customFields.biggest_challenge || body.biggest_challenge || "").trim();
+    const preferredCoachingTone = String(customFields.Preferred_Coaching_Tone || customFields.preferred_coaching_tone || body.preferred_coaching_tone || "").trim();
+    const movementPreference = String(customFields.Movement_Preference || customFields.movement_preference || body.movement_preference || "").trim();
+    const foodPreference = String(customFields.Food_Preference || customFields.food_preference || body.food_preference || "").trim();
+    const mainCravingPattern = String(customFields.Main_Craving_Pattern || customFields.main_craving_pattern || body.main_craving_pattern || "").trim();
 
     const intakeSummary = String(
-      body.intake_summary || "Submitted from website workflow"
+      body.intake_summary || "Submitted from Vercel intake page"
     ).trim();
 
     const programType = String(
@@ -124,24 +69,19 @@ export default async function handler(req, res) {
       "maintenance"
     ).trim();
 
-    const allowedProgramTypes = [
-  "maintenance",
-  "reset_14_day"
-];
+    const allowedProgramTypes = ["maintenance", "reset_14_day"];
 
     if (!email) {
       return res.status(400).json({ error: "Missing email" });
     }
 
     if (!allowedProgramTypes.includes(programType)) {
-      return res.status(400).json({
-        error: "Invalid program_type"
-      });
+      return res.status(400).json({ error: "Invalid program_type" });
     }
 
     const intakePayload = {
       user_id: email,
-      email: email,
+      email,
       first_name: firstName || null,
       companion_name: companionName || null,
       timezone: timezone || null,
@@ -154,8 +94,6 @@ export default async function handler(req, res) {
       intake_summary: intakeSummary || null,
       updated_at: new Date().toISOString()
     };
-
-    console.log("INTAKE UPSERT PAYLOAD:", JSON.stringify(intakePayload, null, 2));
 
     const { data: intakeData, error: intakeError } = await supabase
       .from("intake_profiles")
@@ -170,40 +108,16 @@ export default async function handler(req, res) {
       });
     }
 
-    // Try to find real numeric user id in users table
-    const { data: userRow, error: userLookupError } = await supabase
-      .from("users")
-      .select("id, email, first_name")
-      .ilike("email", email)
-      .maybeSingle();
-
-    if (userLookupError) {
-      console.error("USER LOOKUP ERROR:", userLookupError);
-      return res.status(500).json({
-        error: "Intake saved but user lookup failed",
-        details: userLookupError.message
-      });
-    }
-
-    // If no user row exists yet, we still return success for intake
-    // but note that program assignment did not happen yet
-    if (!userRow) {
-      return res.status(200).json({
-        success: true,
-        profile: intakeData?.[0] || null,
-        program_assigned: false,
-        message: "Intake saved. No matching user row found yet for program assignment."
-      });
-    }
-
-    const userId = String(userRow.id);
     const today = new Date().toISOString().split("T")[0];
     const programConfig = getProgramConfig(programType);
+
+    // Use email as the program user_id to match the intake/chat flow
+    const programUserId = email;
 
     const { error: closeExistingError } = await supabase
       .from("user_programs")
       .update({ status: "completed" })
-      .eq("user_id", userId)
+      .eq("user_id", programUserId)
       .eq("status", "active");
 
     if (closeExistingError) {
@@ -215,7 +129,7 @@ export default async function handler(req, res) {
     }
 
     const programPayload = {
-      user_id: userId,
+      user_id: programUserId,
       program_type: programType,
       status: "active",
       start_date: today,
@@ -223,8 +137,6 @@ export default async function handler(req, res) {
       rollover_program_type: "maintenance",
       support_level: programConfig.support_level
     };
-
-    console.log("PROGRAM INSERT PAYLOAD:", JSON.stringify(programPayload, null, 2));
 
     const { data: programData, error: programError } = await supabase
       .from("user_programs")
