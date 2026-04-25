@@ -375,15 +375,17 @@
           }
 
           localStorage.setItem("user_id", payload.email);
-          localStorage.setItem("first_name", payload.first_name);
-          localStorage.setItem("companion_name", payload.companion_name);
+localStorage.setItem("first_name", payload.first_name);
+localStorage.setItem("companion_name", payload.companion_name);
+localStorage.setItem("program_type", programType);
 
-          showSuccess("Setup complete. Redirecting you to your companion...");
+showSuccess("Setup complete. Redirecting you to your companion...");
 
-          window.location.href =
-            "https://chat.embraceustudio.com/?user_id=" + encodeURIComponent(payload.email) +
-            "&first_name=" + encodeURIComponent(payload.first_name) +
-            "&companion_name=" + encodeURIComponent(payload.companion_name);
+window.location.href =
+  "https://chat.embraceustudio.com/?user_id=" + encodeURIComponent(payload.email) +
+  "&first_name=" + encodeURIComponent(payload.first_name) +
+  "&companion_name=" + encodeURIComponent(payload.companion_name) +
+  "&program_type=" + encodeURIComponent(programType);
 
         } catch (err) {
           console.error("INTAKE SUBMIT ERROR:", err);

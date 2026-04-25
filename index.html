@@ -25,8 +25,9 @@
       const params = new URLSearchParams(window.location.search);
 
       const urlUserId = (params.get("user_id") || "").trim();
-      const urlFirstName = (params.get("first_name") || "").trim();
-      const urlCompanionName = (params.get("companion_name") || "").trim();
+const urlFirstName = (params.get("first_name") || "").trim();
+const urlCompanionName = (params.get("companion_name") || "").trim();
+const urlProgramType = (params.get("program_type") || "").trim();
 
       if (urlUserId && !urlUserId.includes("{{")) {
         localStorage.setItem("user_id", urlUserId);
@@ -39,7 +40,10 @@
       if (urlCompanionName && !urlCompanionName.includes("{{")) {
         localStorage.setItem("companion_name", urlCompanionName);
       }
-
+	
+	if (urlProgramType && !urlProgramType.includes("{{")) {
+  localStorage.setItem("program_type", urlProgramType);
+}
       getOrAskEmail();
     })();
   </script>
@@ -423,7 +427,8 @@
 
     try {
   const currentUserId = getUserId() || "anonymous";
-  const onboardingKey = `nova_onboarding_complete_${currentUserId}`;
+  const programType = localStorage.getItem("program_type") || "maintenance";
+  const onboardingKey = `nova_onboarding_complete_${currentUserId}_${programType}`;
   const hasCompletedOnboarding = localStorage.getItem(onboardingKey);
 
   if (!hasCompletedOnboarding) {
@@ -431,10 +436,34 @@
     const welcomeCompanionName = getCompanionName();
     const senderName = welcomeCompanionName || "Your companion";
 
-    addMessage(
-      senderName,
-      welcomeFirstName
-        ? `Hi ${welcomeFirstName} — I’m here with you.
+    const resetMessage = welcomeFirstName
+      ? `Hi ${welcomeFirstName} — I’m here with you.
+
+Welcome to your 14-Day Blood Sugar Reset.
+
+For Week 1, we’re going to keep this very simple:
+1. remove friction
+2. build a few default meals
+3. reduce sugary drinks
+4. protect your evening window
+
+To customize your first 7-day plan, tell me:
+What are 3–5 foods or meals you already like and would be willing to repeat this week?`
+      : `Hi — I’m here with you.
+
+Welcome to your 14-Day Blood Sugar Reset.
+
+For Week 1, we’re going to keep this very simple:
+1. remove friction
+2. build a few default meals
+3. reduce sugary drinks
+4. protect your evening window
+
+To customize your first 7-day plan, tell me:
+What are 3–5 foods or meals you already like and would be willing to repeat this week?`;
+
+    const maintenanceMessage = welcomeFirstName
+      ? `Hi ${welcomeFirstName} — I’m here with you.
 
 I’d love to get a quick feel for what works best for you so I can support you in a way that feels natural.
 
@@ -442,14 +471,18 @@ What would help me most right now:
 1. what kinds of foods or flavors you usually gravitate toward
 2. when things tend to get hardest for you
 3. whether you prefer calm support, direct support, or upbeat encouragement`
-        : `Hi — I’m here with you.
+      : `Hi — I’m here with you.
 
 I’d love to get a quick feel for what works best for you so I can support you in a way that feels natural.
 
 What would help me most right now:
 1. what kinds of foods or flavors you usually gravitate toward
 2. when things tend to get hardest for you
-3. whether you prefer calm support, direct support, or upbeat encouragement`,
+3. whether you prefer calm support, direct support, or upbeat encouragement`;
+
+    addMessage(
+      senderName,
+      programType === "reset_14_day" ? resetMessage : maintenanceMessage,
       "neville"
     );
 
