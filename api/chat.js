@@ -74,7 +74,15 @@ export default async function handler(req, res) {
     let timezone = "";
     let intakeSummary = "";
 
-    // Load intake profile first
+    let activeProgramType = "maintenance";
+    let activeProgramStatus = "active";
+    let activeProgramStartDate = "";
+    let activeProgramEndDate = "";
+    let rolloverProgramType = "maintenance";
+    let supportLevel = "maintenance";
+    let programContext = "Program: Maintenance mode. Focus on long-term consistency and steady support.";
+
+    // ===== LOAD INTAKE PROFILE =====
     const { data: intakeRow, error: intakeError } = await supabase
       .from("intake_profiles")
       .select(`
@@ -125,7 +133,7 @@ export default async function handler(req, res) {
       }
     }
 
-    // Fallback to users table if needed
+    // ===== FALLBACK TO USERS TABLE =====
     if (!firstName || !companionName) {
       if (USER_ID.includes("@")) {
         const { data: userRow, error: userError } = await supabase
@@ -170,50 +178,156 @@ export default async function handler(req, res) {
       companionName = "your companion";
     }
 
+    // ===== LOAD ACTIVE PROGRAM =====
+    try {
+      const today = new Date().toISOString().split("T")[0];
+
+      const { data: activeProgramRow, error: activeProgramError } = await supabase
+        .from("user_programs")
+        .select(`
+          id,
+          program_type,
+          status,
+          start_date,
+          end_date,
+          rollover_program_type,
+          support_level
+        `)
+        .eq("user_id", USER_ID)
+        .eq("status", "active")
+        .order("start_date", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (activeProgramError) {
+        console.error("ACTIVE PROGRAM LOOKUP ERROR:", activeProgramError);
+      } else if (activeProgramRow) {
+        let resolvedProgram = activeProgramRow;
+
+        const isExpiredReset =
+          resolvedProgram.program_type === "reset_14_day" &&
+          resolvedProgram.end_date &&
+          resolvedProgram.end_date < today;
+
+        if (isExpiredReset) {
+          const nextProgramType = resolvedProgram.rollover_program_type || "maintenance";
+
+          const { error: completeProgramError } = await supabase
+            .from("user_programs")
+            .update({ status: "completed" })
+            .eq("id", resolvedProgram.id);
+
+          if (completeProgramError) {
+            console.error("PROGRAM COMPLETE UPDATE ERROR:", completeProgramError);
+          } else {
+            const { data: newProgramRows, error: newProgramError } = await supabase
+              .from("user_programs")
+              .insert([
+                {
+                  user_id: USER_ID,
+                  program_type: nextProgramType,
+                  status: "active",
+                  start_date: today,
+                  end_date: null,
+                  rollover_program_type: "maintenance",
+                  support_level: "maintenance"
+                }
+              ])
+              .select();
+
+            if (newProgramError) {
+              console.error("PROGRAM ROLLOVER INSERT ERROR:", newProgramError);
+            } else if (newProgramRows && newProgramRows.length > 0) {
+              resolvedProgram = newProgramRows[0];
+            }
+          }
+        }
+
+        activeProgramType = resolvedProgram.program_type || "maintenance";
+        activeProgramStatus = resolvedProgram.status || "active";
+        activeProgramStartDate = resolvedProgram.start_date || "";
+        activeProgramEndDate = resolvedProgram.end_date || "";
+        rolloverProgramType = resolvedProgram.rollover_program_type || "maintenance";
+        supportLevel = resolvedProgram.support_level || "maintenance";
+      }
+
+      if (activeProgramType === "reset_14_day") {
+        programContext = `
+Program: 14-Day Blood Sugar Reset
+Support level: Reset
+Phase: Active 14-day reset
+Purpose: Help the user create early momentum, reduce decision fatigue, stabilize daily patterns, and build a simple foundation they can maintain.
+
+Week 1 logic:
+Theme: Remove friction. Build default meals.
+Focus: Help the user simplify food choices, create 3–5 reliable default meals, reduce sugary drinks, protect evenings, and make consistency easier by reducing daily decisions.
+
+Week 2 logic:
+Theme: Stabilize food. Introduce movement. Reinforce new cravings.
+Focus: Keep food simple, avoid unnecessary variety, add short movement moments, anchor movement after meals, reinforce craving shifts, and help the user lock in the new baseline.
+
+Style:
+More structured and proactive than maintenance mode. Clear, simple, practical, and momentum-building. Give direction without pressure. Keep everything doable in real life.
+
+Rollover after end date: Maintenance
+`;
+      } else {
+        programContext = `
+Program: Maintenance
+Support level: Maintenance
+Phase: Ongoing maintenance
+Purpose: Help the user protect progress, stay steady in real life, and maintain consistency over time.
+Style: Sustainable, calm, supportive, lower intensity, and focused on reinforcing what works.
+`;
+      }
+    } catch (programLoadError) {
+      console.error("PROGRAM LOAD BLOCK ERROR:", programLoadError);
+    }
+
+    // ===== LOAD MEMORY =====
     const memoryLines = [];
 
-// Recent progress logs
-const { data: recentNotes, error: notesError } = await supabase
-  .from("progress_logs")
-  .select("entry_type, entry_text, entry_date, created_at")
-  .eq("user_id", USER_ID)
-  .in("entry_type", ["struggle", "win", "milestone"])
-  .order("created_at", { ascending: false })
-  .limit(5);
+    const { data: recentNotes, error: notesError } = await supabase
+      .from("progress_logs")
+      .select("entry_type, entry_text, entry_date, created_at")
+      .eq("user_id", USER_ID)
+      .in("entry_type", ["struggle", "win", "milestone"])
+      .order("created_at", { ascending: false })
+      .limit(5);
 
-if (notesError) {
-  console.error("PROGRESS LOG MEMORY LOOKUP ERROR:", notesError);
-} else if (recentNotes && recentNotes.length > 0) {
-  memoryLines.push(
-    ...recentNotes.map((note) => {
-      const date = note.entry_date || "";
-      return `- ${date} [${note.entry_type}] ${note.entry_text}`;
-    })
-  );
-}
+    if (notesError) {
+      console.error("PROGRESS LOG MEMORY LOOKUP ERROR:", notesError);
+    } else if (recentNotes && recentNotes.length > 0) {
+      memoryLines.push(
+        ...recentNotes.map((note) => {
+          const date = note.entry_date || "";
+          return `- ${date} [${note.entry_type}] ${note.entry_text}`;
+        })
+      );
+    }
 
-// Saved user memory
-const { data: savedMemories, error: savedMemoryError } = await supabase
-  .from("user_memory")
-  .select("memory_text, created_at")
-  .eq("user_id", USER_ID)
-  .order("created_at", { ascending: false })
-  .limit(5);
+    const { data: savedMemories, error: savedMemoryError } = await supabase
+      .from("user_memory")
+      .select("memory_text, created_at")
+      .eq("user_id", USER_ID)
+      .order("created_at", { ascending: false })
+      .limit(5);
 
-if (savedMemoryError) {
-  console.error("USER MEMORY LOOKUP ERROR:", savedMemoryError);
-} else if (savedMemories && savedMemories.length > 0) {
-  memoryLines.push(
-    ...savedMemories.map((item) => `- [memory] ${item.memory_text}`)
-  );
-}
+    if (savedMemoryError) {
+      console.error("USER MEMORY LOOKUP ERROR:", savedMemoryError);
+    } else if (savedMemories && savedMemories.length > 0) {
+      memoryLines.push(
+        ...savedMemories.map((item) => `- [memory] ${item.memory_text}`)
+      );
+    }
 
-if (memoryLines.length > 0) {
-  recentMemoryContext = memoryLines.join("\n");
-}
+    if (memoryLines.length > 0) {
+      recentMemoryContext = memoryLines.join("\n");
+    }
 
     console.log("MEMORY CANDIDATES:", memoryCandidates);
     console.log("USER_ID BEFORE MEMORY SAVE:", USER_ID, typeof USER_ID);
+    console.log("ACTIVE PROGRAM TYPE:", activeProgramType);
 
     // ===== SAVE NEW MEMORY =====
     try {
@@ -283,7 +397,6 @@ Help the user:
 You are NOT:
 - a doctor
 - a rule enforcer
-- a meal plan generator
 - a calorie counter
 
 You ARE:
@@ -302,6 +415,56 @@ CORE PHILOSOPHY
 - Replacement works better than restriction
 - Real life matters; advice must fit real life
 - The goal is decision support, not rigid rules
+
+-----------------------------------
+PROGRAM MODE AWARENESS
+-----------------------------------
+
+The user may be in one of two modes:
+- Maintenance
+- 14-Day Blood Sugar Reset
+
+If the user is in Maintenance:
+- prioritize sustainability, steadiness, and long-term consistency
+- reduce pressure
+- reinforce what already works
+- help the user maintain progress without overcorrecting
+
+If the user is in 14-Day Blood Sugar Reset:
+- create early momentum and a sense of forward motion
+- be warmer but more directive than maintenance mode
+- reduce decision fatigue
+- keep the plan simple and actionable
+- help the user recover quickly after slips
+- focus on practical daily behaviors that support blood sugar stability
+- remind the user this is a 14-day reset phase, not a forever-perfect plan
+
+Week 1 reset logic:
+- focus on removing friction
+- help the user build 3–5 default meals
+- reduce randomness in food choices
+- protect the evening window
+- reduce or eliminate sugary drinks
+- make consistency easier by reducing daily decisions
+
+Week 2 reset logic:
+- keep food simple and mostly unchanged
+- introduce short movement moments, not workouts
+- encourage movement after meals when possible
+- reinforce reduced cravings as evidence that the system is working
+- help the user lock in the new baseline
+
+A 14-day reset plan should usually include:
+- one main focus
+- up to three anchor actions
+- one craving or trigger strategy
+- one recovery rule for imperfect days
+- one simple win to aim for
+
+Across all modes:
+- do not become clinical
+- do not become a strict rule enforcer
+- adapt your coaching intensity to the current program mode
 
 -----------------------------------
 RESPONSE STRUCTURE
@@ -351,14 +514,15 @@ Avoid:
 - “You’ve got this”
 - “You can do it”
 - anything that feels like a slogan
+
 -----------------------------------
 RESPONSE RULES
 -----------------------------------
 
-- Keep responses to 2–5 sentences
-- Give ONE main next step only
+- Keep responses to 2–5 sentences unless the user is clearly asking for a plan, review, or reset structure
+- Give ONE main next step only unless the user asks for a plan
 - Do not overwhelm the user
-- Avoid long lists unless directly asked
+- Avoid long lists unless directly asked or creating a short reset plan
 - Avoid clinical or technical language
 - Avoid sounding like an expert or authority
 - Never shame, judge, or pressure
@@ -418,6 +582,8 @@ Avoid sounding like:
 
 The user should feel accompanied, not managed.
 
+In reset mode, you may be slightly more assertive and more organized, but you should still feel warm, grounded, and supportive.
+
 -----------------------------------
 PRIMARY FUNCTIONS
 -----------------------------------
@@ -438,6 +604,9 @@ You support the user in:
 
 5. Reflection
 → help reset without guilt
+
+6. Reset planning
+→ when appropriate, help the user create a short 14-day reset plan that builds momentum without overwhelm
 
 -----------------------------------
 PERSONALIZATION PRINCIPLES
@@ -543,6 +712,17 @@ Primary goal: ${primaryGoal || "Not specified"}
 Biggest challenge: ${biggestChallenge || "Not specified"}
 Preferred coaching tone: ${preferredCoachingTone || "Not specified"}
 
+ACTIVE PROGRAM:
+Type: ${activeProgramType}
+Status: ${activeProgramStatus}
+Start date: ${activeProgramStartDate || "Not specified"}
+End date: ${activeProgramEndDate || "Ongoing"}
+Rollover program: ${rolloverProgramType || "maintenance"}
+Support level: ${supportLevel || "maintenance"}
+
+PROGRAM DETAILS:
+${programContext}
+
 INTAKE PROFILE:
 ${intakeProfileContext}
 
@@ -592,10 +772,15 @@ ${message}`
       });
     }
 
+    const defaultReplyByProgram =
+      activeProgramType === "reset_14_day"
+        ? `Hi ${firstName} — welcome to your 14-Day Blood Sugar Reset. This phase is about creating early momentum, reducing decision fatigue, and building simple patterns that fit real life. To get us started, what tends to throw you off most right now — cravings, meals, evenings, energy dips, or consistency?`
+        : `I’m here with you, ${firstName}. To support you in a way that fits you, tell me what usually feels hardest — food choices, cravings, energy, or consistency?`;
+
     const reply =
       data.output_text ||
       data.output?.[0]?.content?.[0]?.text ||
-      `I’m here with you, ${firstName}. To support you in a way that fits you, tell me what usually feels hardest — food choices, cravings, energy, or consistency?`;
+      defaultReplyByProgram;
 
     try {
       const lowerMsg = message.toLowerCase();

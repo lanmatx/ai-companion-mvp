@@ -1,5 +1,21 @@
 import { createClient } from '@supabase/supabase-js';
 
+function getProgramConfig(programType) {
+  if (programType === "reset_14_day") {
+    const endDate = new Date();
+    endDate.setDate(endDate.getDate() + 14);
+
+    return {
+      support_level: "reset",
+      end_date: endDate.toISOString().split("T")[0]
+    };
+  }
+
+  return {
+    support_level: "maintenance",
+    end_date: null
+  };
+}
 export default async function handler(req, res) {
   // CORS headers
   res.setHeader("Access-Control-Allow-Origin", "*");
@@ -32,7 +48,7 @@ export default async function handler(req, res) {
       body.email ||
       body.user_id ||
       ""
-    ).trim();
+    ).trim().toLowerCase();
 
     const firstName = String(
       contact.firstName ||
@@ -101,11 +117,29 @@ export default async function handler(req, res) {
       body.intake_summary || "Submitted from website workflow"
     ).trim();
 
+    const programType = String(
+      body.program_type ||
+      customFields.Program_Type ||
+      customFields.program_type ||
+      "maintenance"
+    ).trim();
+
+    const allowedProgramTypes = [
+  "maintenance",
+  "reset_14_day"
+];
+
     if (!email) {
       return res.status(400).json({ error: "Missing email" });
     }
 
-    const payload = {
+    if (!allowedProgramTypes.includes(programType)) {
+      return res.status(400).json({
+        error: "Invalid program_type"
+      });
+    }
+
+    const intakePayload = {
       user_id: email,
       email: email,
       first_name: firstName || null,
@@ -121,24 +155,95 @@ export default async function handler(req, res) {
       updated_at: new Date().toISOString()
     };
 
-    console.log("UPSERT PAYLOAD:", JSON.stringify(payload, null, 2));
+    console.log("INTAKE UPSERT PAYLOAD:", JSON.stringify(intakePayload, null, 2));
 
-    const { data, error } = await supabase
+    const { data: intakeData, error: intakeError } = await supabase
       .from("intake_profiles")
-      .upsert([payload], { onConflict: "user_id" })
+      .upsert([intakePayload], { onConflict: "user_id" })
       .select();
 
-    if (error) {
-      console.error("SUPABASE UPSERT ERROR:", error);
+    if (intakeError) {
+      console.error("SUPABASE INTAKE UPSERT ERROR:", intakeError);
       return res.status(500).json({
         error: "Failed to save intake",
-        details: error.message
+        details: intakeError.message
+      });
+    }
+
+    // Try to find real numeric user id in users table
+    const { data: userRow, error: userLookupError } = await supabase
+      .from("users")
+      .select("id, email, first_name")
+      .ilike("email", email)
+      .maybeSingle();
+
+    if (userLookupError) {
+      console.error("USER LOOKUP ERROR:", userLookupError);
+      return res.status(500).json({
+        error: "Intake saved but user lookup failed",
+        details: userLookupError.message
+      });
+    }
+
+    // If no user row exists yet, we still return success for intake
+    // but note that program assignment did not happen yet
+    if (!userRow) {
+      return res.status(200).json({
+        success: true,
+        profile: intakeData?.[0] || null,
+        program_assigned: false,
+        message: "Intake saved. No matching user row found yet for program assignment."
+      });
+    }
+
+    const userId = String(userRow.id);
+    const today = new Date().toISOString().split("T")[0];
+    const programConfig = getProgramConfig(programType);
+
+    const { error: closeExistingError } = await supabase
+      .from("user_programs")
+      .update({ status: "completed" })
+      .eq("user_id", userId)
+      .eq("status", "active");
+
+    if (closeExistingError) {
+      console.error("CLOSE EXISTING PROGRAM ERROR:", closeExistingError);
+      return res.status(500).json({
+        error: "Intake saved but failed to close existing program",
+        details: closeExistingError.message
+      });
+    }
+
+    const programPayload = {
+      user_id: userId,
+      program_type: programType,
+      status: "active",
+      start_date: today,
+      end_date: programConfig.end_date,
+      rollover_program_type: "maintenance",
+      support_level: programConfig.support_level
+    };
+
+    console.log("PROGRAM INSERT PAYLOAD:", JSON.stringify(programPayload, null, 2));
+
+    const { data: programData, error: programError } = await supabase
+      .from("user_programs")
+      .insert([programPayload])
+      .select();
+
+    if (programError) {
+      console.error("PROGRAM INSERT ERROR:", programError);
+      return res.status(500).json({
+        error: "Intake saved but failed to assign program",
+        details: programError.message
       });
     }
 
     return res.status(200).json({
       success: true,
-      profile: data?.[0] || null
+      profile: intakeData?.[0] || null,
+      program_assigned: true,
+      program: programData?.[0] || null
     });
   } catch (error) {
     console.error("SAVE INTAKE SERVER ERROR:", error);
