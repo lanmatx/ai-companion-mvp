@@ -13,10 +13,9 @@ function getOrAskEmail() {
     email = prompt("Enter your email to continue:") || "";
     email = email.trim();
 
-    if (email) {
-      localStorage.setItem("user_id", email);
-    }
+    if (email) localStorage.setItem("user_id", email);
   }
+
   return email;
 }
 
@@ -28,18 +27,10 @@ function getOrAskEmail() {
   const urlCompanionName = (params.get("companion_name") || "").trim();
   const urlProgramType = (params.get("program_type") || "").trim();
 
-  if (urlUserId && !urlUserId.includes("{{")) {
-    localStorage.setItem("user_id", urlUserId);
-  }
-  if (urlFirstName && !urlFirstName.includes("{{")) {
-    localStorage.setItem("first_name", urlFirstName);
-  }
-  if (urlCompanionName && !urlCompanionName.includes("{{")) {
-    localStorage.setItem("companion_name", urlCompanionName);
-  }
-  if (urlProgramType && !urlProgramType.includes("{{")) {
-    localStorage.setItem("program_type", urlProgramType);
-  }
+  if (urlUserId && !urlUserId.includes("{{")) localStorage.setItem("user_id", urlUserId);
+  if (urlFirstName && !urlFirstName.includes("{{")) localStorage.setItem("first_name", urlFirstName);
+  if (urlCompanionName && !urlCompanionName.includes("{{")) localStorage.setItem("companion_name", urlCompanionName);
+  if (urlProgramType && !urlProgramType.includes("{{")) localStorage.setItem("program_type", urlProgramType);
 
   getOrAskEmail();
 })();
@@ -50,6 +41,7 @@ body {
   margin: 0;
   font-family: Arial, sans-serif;
   background: #f4f4f4;
+  color: #222;
 }
 
 .wrap {
@@ -63,6 +55,32 @@ body {
   border-radius: 18px;
   padding: 28px 24px;
   color: white;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+}
+
+h1 {
+  margin: 0 0 12px;
+  font-size: 2rem;
+  line-height: 1.15;
+  text-align: center;
+}
+
+.sub {
+  text-align: center;
+  font-size: 1.15rem;
+  line-height: 1.5;
+  margin-bottom: 18px;
+}
+
+.voice-toggle {
+  background: white;
+  color: #ff4a00;
+  border: none;
+  border-radius: 10px;
+  padding: 10px 14px;
+  font-weight: bold;
+  cursor: pointer;
+  margin-bottom: 12px;
 }
 
 .chatbox {
@@ -85,145 +103,465 @@ body {
 .neville {
   background: #fff4ec;
   border-left: 4px solid #ff4a00;
-  padding: 10px;
+  padding: 10px 12px;
   border-radius: 10px;
 }
 
 .user {
   background: #f1f1f1;
   border-left: 4px solid #999;
-  padding: 10px;
+  padding: 10px 12px;
   border-radius: 10px;
 }
 
-.voice-toggle {
+.quick-replies {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 14px;
+}
+
+.quick-replies button {
   background: white;
   color: #ff4a00;
   border: none;
   border-radius: 10px;
-  padding: 8px 12px;
-  font-weight: bold;
+  padding: 12px 16px;
+  font-size: 1rem;
   cursor: pointer;
-  margin-bottom: 10px;
+  font-weight: 600;
+}
+
+.input-row {
+  display: flex;
+  gap: 10px;
+  align-items: flex-end;
+}
+
+.input-wrap {
+  flex: 1;
+}
+
+#messageInput {
+  width: 100%;
+  box-sizing: border-box;
+  min-height: 76px;
+  max-height: 170px;
+  padding: 14px;
+  border-radius: 14px;
+  border: none;
+  font-size: 16px;
+  resize: none;
+  outline: none;
+  line-height: 1.4;
+  font-family: Arial, sans-serif;
+}
+
+#sendBtn {
+  background: white;
+  color: #ff4a00;
+  border: none;
+  border-radius: 14px;
+  padding: 16px 18px;
+  font-weight: bold;
+  font-size: 16px;
+  cursor: pointer;
+  min-width: 92px;
+  min-height: 76px;
+  transition: all 0.2s ease;
+}
+
+#sendBtn:hover {
+  background: #ffe6d9;
+}
+
+#sendBtn:active {
+  transform: scale(0.96);
+}
+
+#sendBtn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.meta-row {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 8px;
+  font-size: 0.9rem;
+}
+
+.char-counter {
+  color: #fff3eb;
+}
+
+.error-text {
+  color: #ffe08a;
+  display: none;
+}
+
+.footer-note {
+  color: #fff3eb;
+  text-align: center;
+  margin-top: 14px;
+  font-size: 0.95rem;
+}
+
+.loading {
+  opacity: 0.75;
+  font-style: italic;
 }
 </style>
 </head>
 
 <body>
 <div class="wrap">
-<div class="card">
+  <div class="card">
+    <h1 id="heroTitle">Hi, I’m your health companion</h1>
 
-<h1 id="heroTitle">Hi, I’m your health companion</h1>
+    <div class="sub">
+      I’m here to help you stay on track — especially when it gets hard.
+    </div>
 
-<button id="voiceToggle" class="voice-toggle">🔊 Voice: Off</button>
+    <button id="voiceToggle" class="voice-toggle">🔇 Voice: Off</button>
 
-<div id="chatbox" class="chatbox"></div>
+    <div id="chatbox" class="chatbox"></div>
 
-<textarea id="messageInput" placeholder="Type your message..."></textarea>
-<button onclick="sendMessage()">Send</button>
+    <div class="quick-replies">
+      <button onclick="sendQuickReply(`I’m okay`)">I’m okay</button>
+      <button onclick="sendQuickReply(`I’m low energy`)">I’m low energy</button>
+      <button onclick="sendQuickReply(`I’m tempted`)">I’m tempted</button>
+    </div>
 
-</div>
+    <div class="input-row">
+      <div class="input-wrap">
+        <textarea
+          id="messageInput"
+          maxlength="400"
+          placeholder="Type your message here..."
+          rows="2"
+        ></textarea>
+
+        <div class="meta-row">
+          <div id="errorText" class="error-text">Please keep your message under 400 characters.</div>
+          <div id="charCounter" class="char-counter">0 / 400</div>
+        </div>
+      </div>
+
+      <button id="sendBtn" onclick="sendMessage()">➤ Send</button>
+    </div>
+
+    <div class="footer-note">
+      Small step. Real support. One decision at a time.
+    </div>
+  </div>
 </div>
 
 <script>
 const chatbox = document.getElementById("chatbox");
 const input = document.getElementById("messageInput");
+const sendBtn = document.getElementById("sendBtn");
+const charCounter = document.getElementById("charCounter");
+const errorText = document.getElementById("errorText");
 const heroTitle = document.getElementById("heroTitle");
 const voiceToggle = document.getElementById("voiceToggle");
+const MAX_CHARS = 400;
 
 // ===== VOICE SYSTEM =====
 let voiceEnabled = localStorage.getItem("voice_enabled") === "true";
-
-updateVoiceButton();
 
 function updateVoiceButton() {
   voiceToggle.textContent = voiceEnabled ? "🔊 Voice: On" : "🔇 Voice: Off";
 }
 
-voiceToggle.onclick = () => {
+voiceToggle.addEventListener("click", function () {
   voiceEnabled = !voiceEnabled;
-  localStorage.setItem("voice_enabled", voiceEnabled);
+  localStorage.setItem("voice_enabled", String(voiceEnabled));
   updateVoiceButton();
-};
+
+  if (!voiceEnabled && "speechSynthesis" in window) {
+    window.speechSynthesis.cancel();
+  }
+});
 
 function speak(text) {
   if (!voiceEnabled) return;
+  if (!("speechSynthesis" in window)) return;
 
   window.speechSynthesis.cancel();
 
-  const utterance = new SpeechSynthesisUtterance(text);
+  const cleanText = String(text || "")
+    .replace(/\*/g, "")
+    .replace(/👉/g, "")
+    .replace(/•/g, "")
+    .trim();
+
+  if (!cleanText) return;
+
+  const utterance = new SpeechSynthesisUtterance(cleanText);
   utterance.rate = 1;
   utterance.pitch = 1;
 
-  speechSynthesis.speak(utterance);
+  window.speechSynthesis.speak(utterance);
 }
 
-// ===== CORE FUNCTIONS =====
+updateVoiceButton();
+
+// ===== HELPERS =====
+function escapeHtml(text) {
+  return String(text || "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#39;");
+}
 
 function getUserId() {
-  return localStorage.getItem("user_id");
+  return getOrAskEmail();
 }
 
 function getFirstName() {
-  return localStorage.getItem("first_name") || "";
+  return (localStorage.getItem("first_name") || "").trim();
 }
 
 function getCompanionName() {
-  return localStorage.getItem("companion_name") || "Nova";
+  const companionName = (localStorage.getItem("companion_name") || "").trim();
+  if (!companionName || companionName.includes("{{")) return "Nova";
+  return companionName;
+}
+
+function getProgramType() {
+  return (localStorage.getItem("program_type") || "maintenance").trim();
 }
 
 function updateHeader() {
-  const name = getFirstName();
-  const companion = getCompanionName();
+  const firstName = getFirstName();
+  const companionName = getCompanionName();
 
-  heroTitle.textContent = name
-    ? `Hi ${name}, I’m ${companion} — your health companion`
-    : `Hi, I’m ${companion}`;
+  if (firstName && companionName) {
+    heroTitle.textContent = `Hi ${firstName}, I’m ${companionName} — your health companion`;
+  } else if (companionName) {
+    heroTitle.textContent = `Hi, I’m ${companionName} — your health companion`;
+  } else {
+    heroTitle.textContent = "Hi, I’m your health companion";
+  }
 }
 
-function addMessage(sender, text, type) {
+function addMessage(sender, text, type, shouldSpeak = true) {
   const div = document.createElement("div");
   div.className = `msg ${type}`;
-  div.innerHTML = `<strong>${sender}:</strong><br>${text}`;
+  div.innerHTML = `<strong>${escapeHtml(sender)}:</strong><br>${escapeHtml(text)}`;
   chatbox.appendChild(div);
   chatbox.scrollTop = chatbox.scrollHeight;
 
-  // 🔊 SPEAK ONLY NOVA
-  if (type === "neville" && !text.includes("Thinking")) {
+  if (shouldSpeak && type === "neville" && !String(text).includes("Thinking")) {
     speak(text);
   }
 }
 
-async function sendMessage() {
+function addLoading() {
+  const div = document.createElement("div");
+  div.className = "msg neville loading";
+  div.id = "loadingMsg";
+  div.innerHTML = `<strong>${escapeHtml(getCompanionName())}:</strong><br>Thinking...`;
+  chatbox.appendChild(div);
+  chatbox.scrollTop = chatbox.scrollHeight;
+}
+
+function removeLoading() {
+  const loading = document.getElementById("loadingMsg");
+  if (loading) loading.remove();
+}
+
+function updateCounter() {
+  const length = input.value.length;
+  charCounter.textContent = `${length} / ${MAX_CHARS}`;
+
+  if (length >= MAX_CHARS) {
+    errorText.style.display = "block";
+  } else {
+    errorText.style.display = "none";
+  }
+}
+
+function autoResizeInput() {
+  input.style.height = "auto";
+  input.style.height = Math.min(input.scrollHeight, 170) + "px";
+}
+
+// ===== CHAT =====
+async function sendToCompanion(message) {
+  const user_id = getUserId();
+  const first_name = getFirstName();
+  const companion_name = getCompanionName();
+
+  if (!user_id) {
+    addMessage(companion_name, "I need your email to continue.", "neville");
+    return;
+  }
+
+  addMessage("You", message, "user", false);
+  addLoading();
+  sendBtn.disabled = true;
+
+  try {
+    const response = await fetch("/api/chat", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        message,
+        user_id,
+        email: user_id,
+        first_name,
+        companion_name
+      })
+    });
+
+    const data = await response.json();
+    removeLoading();
+
+    if (!response.ok) {
+      console.error("CHAT API ERROR:", data);
+      addMessage(
+        companion_name,
+        data.error
+          ? `I hit a technical issue: ${data.error}`
+          : "I’m here with you, but I hit a technical issue. Please try again.",
+        "neville"
+      );
+      return;
+    }
+
+    addMessage(
+      data.companion_name || companion_name,
+      data.reply || "I’m here with you, but I hit a technical issue. Please try again.",
+      "neville"
+    );
+  } catch (error) {
+    removeLoading();
+    console.error(error);
+    addMessage(
+      companion_name,
+      "I’m having trouble connecting right now. Please try again in a moment.",
+      "neville"
+    );
+  } finally {
+    sendBtn.disabled = false;
+  }
+}
+
+function sendMessage() {
   const message = input.value.trim();
   if (!message) return;
 
+  if (message.length > MAX_CHARS) {
+    errorText.style.display = "block";
+    return;
+  }
+
   input.value = "";
-  addMessage("You", message, "user");
-
-  addMessage(getCompanionName(), "Thinking...", "neville");
-
-  const response = await fetch("/api/chat", {
-    method: "POST",
-    headers: {"Content-Type": "application/json"},
-    body: JSON.stringify({
-      message,
-      user_id: getUserId(),
-      first_name: getFirstName(),
-      companion_name: getCompanionName()
-    })
-  });
-
-  const data = await response.json();
-
-  document.querySelector(".loading")?.remove();
-
-  addMessage(getCompanionName(), data.reply || "Something went wrong", "neville");
+  updateCounter();
+  autoResizeInput();
+  sendToCompanion(message);
 }
+
+function sendQuickReply(message) {
+  sendToCompanion(message);
+}
+
+// ===== EVENTS =====
+input.addEventListener("input", function () {
+  updateCounter();
+  autoResizeInput();
+});
+
+input.addEventListener("keydown", function (e) {
+  if (e.key === "Enter" && !e.shiftKey) {
+    e.preventDefault();
+    sendMessage();
+  }
+});
 
 // ===== INIT =====
 updateHeader();
-</script>
 
+try {
+  const currentUserId = getUserId() || "anonymous";
+  const programType = getProgramType();
+  const onboardingKey = `nova_onboarding_complete_${currentUserId}_${programType}`;
+  const hasCompletedOnboarding = localStorage.getItem(onboardingKey);
+
+  if (!hasCompletedOnboarding) {
+    const welcomeFirstName = getFirstName();
+    const senderName = getCompanionName();
+
+    const resetMessage = welcomeFirstName
+      ? `Hi ${welcomeFirstName} — I’m here with you.
+
+Welcome to your 14-Day Blood Sugar Reset.
+
+For Week 1, we’re going to keep this very simple:
+1. remove friction
+2. build a few default meals
+3. reduce sugary drinks
+4. protect your evening window
+
+To customize your first 7-day plan, tell me:
+What are 3–5 foods or meals you already like and would be willing to repeat this week?`
+      : `Hi — I’m here with you.
+
+Welcome to your 14-Day Blood Sugar Reset.
+
+For Week 1, we’re going to keep this very simple:
+1. remove friction
+2. build a few default meals
+3. reduce sugary drinks
+4. protect your evening window
+
+To customize your first 7-day plan, tell me:
+What are 3–5 foods or meals you already like and would be willing to repeat this week?`;
+
+    const maintenanceMessage = welcomeFirstName
+      ? `Hi ${welcomeFirstName} — I’m here with you.
+
+I’d love to get a quick feel for what works best for you so I can support you in a way that feels natural.
+
+What would help me most right now:
+1. what kinds of foods or flavors you usually gravitate toward
+2. when things tend to get hardest for you
+3. whether you prefer calm support, direct support, or upbeat encouragement`
+      : `Hi — I’m here with you.
+
+I’d love to get a quick feel for what works best for you so I can support you in a way that feels natural.
+
+What would help me most right now:
+1. what kinds of foods or flavors you usually gravitate toward
+2. when things tend to get hardest for you
+3. whether you prefer calm support, direct support, or upbeat encouragement`;
+
+    addMessage(
+      senderName,
+      programType === "reset_14_day" ? resetMessage : maintenanceMessage,
+      "neville",
+      false
+    );
+
+    localStorage.setItem(onboardingKey, "true");
+  }
+} catch (e) {
+  console.error("INIT ERROR:", e);
+}
+
+updateCounter();
+autoResizeInput();
+
+console.log("ACTIVE USER ID:", getUserId());
+console.log("ACTIVE FIRST NAME:", getFirstName());
+console.log("ACTIVE COMPANION NAME:", getCompanionName());
+console.log("ACTIVE PROGRAM TYPE:", getProgramType());
+</script>
 </body>
 </html>
